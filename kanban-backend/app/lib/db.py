@@ -72,8 +72,10 @@ SCHEMA_STATEMENTS: list[str] = [
         id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         board_id    UUID NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
         token       TEXT NOT NULL UNIQUE,
+        invited_email TEXT NOT NULL,
         created_by  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         expires_at  TIMESTAMPTZ,
+        accepted_at TIMESTAMPTZ,
         created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS idx_board_invites_board_id ON board_invites(board_id);
@@ -107,10 +109,9 @@ SCHEMA_STATEMENTS: list[str] = [
         created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
-    CREATE INDEX IF NOT EXISTS idx_tasks_column_id ON tasks(column_id);
+    CREATE INDEX IF NOT EXISTS idx_tasks_column_position
+    ON tasks(column_id, position);
     CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_token_column_position
-            ON columns(column_id, position);
     """,
  
     """
