@@ -89,6 +89,8 @@ SCHEMA_STATEMENTS: list[str] = [
         updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS idx_columns_board_id ON columns(board_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_columns_board_position
+        ON columns(board_id, position);
     """,
  
     """
@@ -107,6 +109,8 @@ SCHEMA_STATEMENTS: list[str] = [
     );
     CREATE INDEX IF NOT EXISTS idx_tasks_column_id ON tasks(column_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_token_column_position
+            ON columns(column_id, position);
     """,
  
     """
