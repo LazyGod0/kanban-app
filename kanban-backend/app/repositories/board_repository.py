@@ -121,6 +121,22 @@ class BoardRepository:
                 )
                 return await curr.fetchone() is not None
 
+    async def is_member_email(self, board_id: UUID, email: str) -> bool:
+        async with self.pool.connection() as conn:
+            async with conn.cursor() as curr:
+                await curr.execute(
+                    """
+                    SELECT 1
+                    FROM board_members AS bm
+                    INNER JOIN users AS u ON u.id = bm.user_id
+                    WHERE bm.board_id = %s
+                      AND lower(u.email) = lower(%s)
+                    LIMIT 1
+                    """,
+                    (board_id, email),
+                )
+                return await curr.fetchone() is not None
+
     async def create_invite(
         self,
         board_id: UUID,

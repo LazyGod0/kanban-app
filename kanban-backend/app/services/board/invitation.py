@@ -30,6 +30,9 @@ class BoardInvitationService:
                 "Board not found or user is not the owner"
             )
 
+        if await self.board_repository.is_member_email(board_id, recipient_email):
+            raise ValueError("User is already a member of this board")
+
         raw_token = token_urlsafe(32)
         token_hash = sha256(raw_token.encode("utf-8")).hexdigest()
         expires_at = datetime.now(timezone.utc) + timedelta(days=7)
@@ -55,7 +58,6 @@ class BoardInvitationService:
         user_email: str,
     ):
         token_hash = sha256(raw_token.encode("utf-8")).hexdigest()
-        print(token_hash)
         invite = await self.board_repository.accept_invite(
             token_hash, user_id, user_email
         )
