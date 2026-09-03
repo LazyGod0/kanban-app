@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Cookie, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from app.dependencies.auth import get_current_user
 from app.lib.db import pool
 from app.models.auth import RegisterPayload,SignInPayload, UserResponse
 from app.services.auth.auth import AuthService
@@ -92,20 +93,8 @@ async def refresh(
 
 
 @router.get("/me", response_model=UserResponse)
-async def me(access_token: str | None = Cookie(default=None)):
-    if not access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Access token is required",
-        )
-
-    try:
-        return await auth_service.get_current_user(access_token)
-    except UnauthorizedException as error:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(error),
-        ) from error
+async def me(user: dict = Depends(get_current_user)):
+    return user
 
 
 @router.post("/signout", status_code=status.HTTP_204_NO_CONTENT)
