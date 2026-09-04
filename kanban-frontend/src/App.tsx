@@ -11,6 +11,7 @@ import { AuthProvider } from "./context/AuthContext";
 import Register from "./routes/auth/RegisterPage";
 import SignIn from "./routes/auth/SignInPage";
 import BoardPage from "./routes/content/BoardPage";
+import BoardLayout from "./layout/BoardLayout";
 
 function AppLayout() {
   return <Outlet />;
@@ -28,7 +29,9 @@ function App() {
               <Route path="register" element={<Register />} />
             </Route>
             <Route element={<ProtectedRoute />}>
-              <Route path="boards" element={<BoardPage />} />
+              <Route element={<BoardLayout />}>
+                <Route path="boards" element={<BoardPage />}/>
+              </Route>
             </Route>
           </Route>
         </Routes>
