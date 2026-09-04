@@ -5,6 +5,7 @@ from app.dependencies.auth import get_current_user, get_current_user_id
 from app.errors.board import BoardNotFoundException
 from app.lib.db import pool
 from app.models.board import BoardPayload, BoardResponse
+from app.models.member import BoardMemberResponse
 from app.models.invite import (
 	BoardInvitePayload,
 	BoardInviteResponse,
@@ -29,6 +30,40 @@ async def create_board(payload: BoardPayload,user_id: UUID = Depends(get_current
 async def get_many_boards(user_id: UUID = Depends(get_current_user_id)):
 	return await board_service.get_many_boards(user_id)
 
+@router.get(
+	"/{board_id}/members",
+	response_model=list[BoardMemberResponse],
+	tags=["Board Members"],
+)
+async def get_board_members(
+	board_id: UUID,
+	user_id: UUID = Depends(get_current_user_id),
+):
+	try:
+		return await board_service.get_members(board_id, user_id)
+	except BoardNotFoundException as error:
+		raise HTTPException(
+			status_code=status.HTTP_404_NOT_FOUND,
+			detail=str(error),
+		) from error
+
+@router.delete(
+	"/{board_id}/members/{member_id}",
+	status_code=status.HTTP_204_NO_CONTENT,
+	tags=["Board Members"],
+)
+async def remove_board_member(
+	board_id: UUID,
+	member_id: UUID,
+	owner_id: UUID = Depends(get_current_user_id),
+):
+	try:
+		await board_service.remove_member(board_id, owner_id, member_id)
+	except BoardNotFoundException as error:
+		raise HTTPException(
+			status_code=status.HTTP_404_NOT_FOUND,
+			detail=str(error),
+		) from error
 
 @router.post(
 	"/{board_id}/invites",
