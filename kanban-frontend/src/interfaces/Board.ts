@@ -3,4 +3,5 @@ export type Board = {
   name: string;
   createdAt: string;
   updatedAt: string;
+  isOwner: boolean;
 };

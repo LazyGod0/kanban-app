@@ -13,7 +13,8 @@ import {
 import { useState, type SubmitEvent } from "react";
 import type { Board } from "../../interfaces/Board";
 import AddBoardForm from "./AddBoardForm";
-import DeletePopUP from "../common/DeletePopUP";
+import DeletePopUp from "../common/DeletePopUp";
+import InviteBoardForm from "./InviteBoardForm";
 
 type BoardListProps = {
   boards: Board[];
@@ -142,24 +143,29 @@ function BoardList({
                     secondary={`Created ${new Date(board.createdAt).toLocaleDateString()}`}
                   />
                 </ListItemButton>
-                <Button size="small" onClick={() => startEditing(board)}>
-                  Edit
-                </Button>
-                <Button
-                  size="small"
-                  color="error"
-                  onClick={() => setBoardToDelete(board)}
-                  disabled={deletingBoardId === board.id}
-                >
-                  Delete
-                </Button>
+                {board.isOwner && (
+                  <>
+                    <Button size="small" onClick={() => startEditing(board)}>
+                      Edit
+                    </Button>
+                    <InviteBoardForm boardId={board.id} />
+                    <Button
+                      size="small"
+                      color="error"
+                      onClick={() => setBoardToDelete(board)}
+                      disabled={deletingBoardId === board.id}
+                    >
+                      Delete
+                    </Button>
+                  </>
+                )}
               </Stack>
             )}
             {index < boards.length - 1 && <Divider />}
           </Box>
         ))}
       </List>
-      <DeletePopUP
+      <DeletePopUp
         open={boardToDelete !== null}
         itemName={
           boardToDelete?.name ? `board "${boardToDelete.name}"` : "board"
