@@ -11,6 +11,7 @@ import { AuthProvider } from "./context/AuthContext";
 import Register from "./routes/auth/RegisterPage";
 import SignIn from "./routes/auth/SignInPage";
 import BoardPage from "./routes/content/BoardPage";
+import BoardDetailPage from "./routes/content/BoardDetailPage";
 import BoardLayout from "./layout/BoardLayout";
 
 function AppLayout() {
@@ -31,6 +32,7 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<BoardLayout />}>
                 <Route path="boards" element={<BoardPage />}/>
+                <Route path="boards/:boardId" element={<BoardDetailPage />}/>
               </Route>
             </Route>
           </Route>

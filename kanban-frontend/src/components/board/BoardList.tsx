@@ -11,6 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useState, type SubmitEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import type { Board } from "../../interfaces/Board";
 import AddBoardForm from "./AddBoardForm";
 import DeletePopUp from "../common/DeletePopUp";
@@ -30,6 +31,7 @@ function BoardList({
   onBoardUpdated,
   onBoardDeleted,
 }: BoardListProps) {
+  const navigate = useNavigate()
   const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -134,7 +136,7 @@ function BoardList({
                 spacing={1}
                 sx={{ alignItems: "center", px: 2.5, py: 1 }}
               >
-                <ListItemButton component="div" sx={{ minWidth: 0, px: 0 }}>
+                <ListItemButton onClick={() => navigate(`/boards/${board.id}`)} component="div" sx={{ minWidth: 0, px: 0 }}>
                   <ListItemText
                     primary={
                       <Typography sx={{ fontWeight: 700 }}>
