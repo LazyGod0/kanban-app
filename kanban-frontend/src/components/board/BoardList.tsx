@@ -15,6 +15,7 @@ import type { Board } from "../../interfaces/Board";
 import AddBoardForm from "./AddBoardForm";
 import DeletePopUp from "../common/DeletePopUp";
 import InviteBoardForm from "./InviteBoardForm";
+import ManageMembersDialog from "./ManageMembersDialog";
 
 type BoardListProps = {
   boards: Board[];
@@ -148,6 +149,10 @@ function BoardList({
                     <Button size="small" onClick={() => startEditing(board)}>
                       Edit
                     </Button>
+                    <ManageMembersDialog
+                      boardId={board.id}
+                      boardName={board.name}
+                    />
                     <InviteBoardForm boardId={board.id} />
                     <Button
                       size="small"
