@@ -1,14 +1,7 @@
-import { Outlet, useLocation } from "react-router-dom";
-import { Alert, Box, Container, Paper } from "@mui/material";
-
-type AuthLocationState = {
-  name?: string;
-};
+import { Outlet } from "react-router-dom";
+import { Box, Container, Paper } from "@mui/material";
 
 function AuthLayout() {
-  const location = useLocation();
-  const state = location.state as AuthLocationState | null;
-
   return (
     <Box
       sx={{
@@ -37,13 +30,7 @@ function AuthLayout() {
             boxShadow: "0 22px 60px rgba(53, 78, 43, 0.12)",
           }}
         >
-          {state?.name ? (
-            <Alert severity="success">
-              Welcome, {state.name}. Your session is ready.
-            </Alert>
-          ) : (
-            <Outlet />
-          )}
+          <Outlet />
         </Paper>
       </Container>
     </Box>
