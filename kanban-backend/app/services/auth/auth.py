@@ -1,4 +1,3 @@
-from uuid import UUID
 from psycopg_pool import AsyncConnectionPool
 from app.services.auth.lib.bcrypt import hash_passwd,check_passwd
 from app.repositories.user_repository import UserRepository
@@ -44,18 +43,6 @@ class AuthService:
             await token_service.revoke_token(access_token)
         if refresh_token:
             await token_service.revoke_token(refresh_token)
-
-    async def get_current_user(self, access_token: str) -> dict:
-        user_id = await token_service.verify_access_token(access_token)
-        try:
-            user_uuid = UUID(user_id)
-        except ValueError as error:
-            raise UnauthorizedException("Invalid access token") from error
-
-        user = await self.user_repo.find_by_id(user_uuid)
-        if not user:
-            raise UnauthorizedException("User not found")
-        return user
 
 
 
