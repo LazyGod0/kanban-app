@@ -50,7 +50,7 @@ class BoardRepository:
             async with conn.cursor(row_factory=dict_row) as curr:
                 await curr.execute(
                     """
-                    SELECT b.*
+                    SELECT b.*, (bm.role = 'owner') AS is_owner
                     FROM boards AS b
                     INNER JOIN board_members AS bm ON bm.board_id = b.id
                     WHERE b.id = %s AND bm.user_id = %s
@@ -64,7 +64,7 @@ class BoardRepository:
             async with conn.cursor(row_factory=dict_row) as curr:
                 await curr.execute(
                     """
-                    SELECT DISTINCT b.*
+                    SELECT DISTINCT b.*, (bm.role = 'owner') AS is_owner
                     FROM boards AS b
                     INNER JOIN board_members AS bm ON bm.board_id = b.id
                     WHERE bm.user_id = %s
