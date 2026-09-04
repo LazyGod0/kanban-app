@@ -31,7 +31,7 @@ function AddBoardForm({ onCreated }: AddBoardFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addColumn = () => {
-    if (columns.length < 5) {
+    if (columns.length < 3) {
       setColumns((current) => [...current, ""]);
     }
   };

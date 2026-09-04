@@ -23,7 +23,7 @@ function BoardLayout() {
     <Box sx={{ minHeight: "100svh", py: { xs: 4, md: 8 } }}>
       <Stack
         spacing={3}
-        sx={{ width: "100%", maxWidth: 720, mx: "auto", px: 2 }}
+        sx={{ width: "100%", maxWidth: 1200, mx: "auto", px: 2 }}
       >
         <AccountCard
           user={user}
