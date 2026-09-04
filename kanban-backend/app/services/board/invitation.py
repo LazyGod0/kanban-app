@@ -1,21 +1,18 @@
 from datetime import datetime, timedelta, timezone
-from hashlib import sha256
-from secrets import token_urlsafe
 from uuid import UUID
 from app.errors.board import BoardNotFoundException
-from app.config.setting import settings
 from app.repositories.board_repository import BoardRepository
-from app.services.email import EmailService
+from app.repositories.user_repository import UserRepository
 
 
 class BoardInvitationService:
     def __init__(
         self,
         board_repository: BoardRepository,
-        email_service: EmailService,
+        user_repository: UserRepository,
     ):
         self.board_repository = board_repository
-        self.email_service = email_service
+        self.user_repository = user_repository
 
     async def invite_by_email(
         self,
@@ -30,37 +27,45 @@ class BoardInvitationService:
                 "Board not found or user is not the owner"
             )
 
-        if await self.board_repository.is_member_email(board_id, recipient_email):
+        recipient = await self.user_repository.find_by_email(recipient_email)
+        if not recipient:
+            raise ValueError("User not found")
+
+        if recipient["id"] == owner_id:
+            raise ValueError("You cannot invite yourself")
+
+        if await self.board_repository.is_member(board_id, recipient["id"]):
             raise ValueError("User is already a member of this board")
 
-        raw_token = token_urlsafe(32)
-        token_hash = sha256(raw_token.encode("utf-8")).hexdigest()
+        if await self.board_repository.has_pending_invite(
+            board_id, recipient["id"]
+        ):
+            raise ValueError("User already has a pending invitation")
+
         expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-        invite = await self.board_repository.create_invite(
+        return await self.board_repository.create_invite(
             board_id=board_id,
+            invited_user_id=recipient["id"],
             invited_email=recipient_email,
             created_by=owner_id,
-            token_hash=token_hash,
             expires_at=expires_at,
         )
-        invite_url = f"{settings.frontend_url}/invite/{raw_token}"
-        await self.email_service.send_board_invite(
-            recipient=recipient_email,
-            board_name=board["name"],
-            invite_url=invite_url,
-        )
-        return invite
+
+    async def list_pending_invites(self, user_id: UUID):
+        return await self.board_repository.list_pending_invites(user_id)
 
     async def accept_invite(
         self,
-        raw_token: str,
+        invite_id: UUID,
         user_id: UUID,
-        user_email: str,
     ):
-        token_hash = sha256(raw_token.encode("utf-8")).hexdigest()
-        invite = await self.board_repository.accept_invite(
-            token_hash, user_id, user_email
-        )
+        invite = await self.board_repository.accept_invite(invite_id, user_id)
+        if not invite:
+            raise BoardNotFoundException("Invitation is invalid or expired")
+        return invite
+
+    async def reject_invite(self, invite_id: UUID, user_id: UUID):
+        invite = await self.board_repository.reject_invite(invite_id, user_id)
         if not invite:
             raise BoardNotFoundException("Invitation is invalid or expired")
         return invite
