@@ -8,7 +8,8 @@ class BoardService:
         self.board_repository = board_repository
 
     async def create_board(self, user_id: UUID, name: str):
-        return await self.board_repository.create_board(user_id, name)
+        board = await self.board_repository.create_board(user_id, name)
+        return {**board, "is_owner": True}
 
     async def get_board(self, board_id: UUID, user_id: UUID):
         board = await self.board_repository.find_board(board_id, user_id)
@@ -41,7 +42,7 @@ class BoardService:
         board = await self.board_repository.update_board(board_id, owner_id, name)
         if not board:
             raise BoardNotFoundException("Board not found or user is not the owner")
-        return board
+        return {**board, "is_owner": True}
 
     async def delete_board(self, board_id: UUID, owner_id: UUID) -> None:
         deleted = await self.board_repository.delete_board(board_id, owner_id)

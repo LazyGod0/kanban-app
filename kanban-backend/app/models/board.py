@@ -17,6 +17,7 @@ class BoardResponse(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     created_at: datetime
     updated_at: datetime
+    is_owner: bool
 
     model_config = ConfigDict(
         alias_generator=to_camel,
