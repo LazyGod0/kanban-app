@@ -71,14 +71,21 @@ SCHEMA_STATEMENTS: list[str] = [
     CREATE TABLE IF NOT EXISTS board_invites (
         id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         board_id    UUID NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
-        token       TEXT NOT NULL UNIQUE,
+        invited_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         invited_email TEXT NOT NULL,
         created_by  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        expires_at  TIMESTAMPTZ,
-        accepted_at TIMESTAMPTZ,
-        created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+        status      TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'accepted', 'rejected')),
+        expires_at  TIMESTAMPTZ NOT NULL,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+        responded_at TIMESTAMPTZ
     );
     CREATE INDEX IF NOT EXISTS idx_board_invites_board_id ON board_invites(board_id);
+    CREATE INDEX IF NOT EXISTS idx_board_invites_invited_user_id
+        ON board_invites(invited_user_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_board_invites_pending_recipient
+        ON board_invites(board_id, invited_user_id)
+        WHERE status = 'pending';
     """,
     
     """
@@ -147,6 +154,7 @@ SCHEMA_STATEMENTS: list[str] = [
         id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         task_id     UUID REFERENCES tasks(id) ON DELETE SET NULL,
+        board_invite_id UUID REFERENCES board_invites(id) ON DELETE CASCADE,
         type        TEXT NOT NULL,  
         message     TEXT NOT NULL,
         is_read     BOOLEAN NOT NULL DEFAULT FALSE,
