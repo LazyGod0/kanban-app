@@ -95,7 +95,7 @@ function AddBoardForm({ onCreated }: AddBoardFormProps) {
 
   return (
     <>
-      <ListItemButton onClick={() => setIsOpen((current) => !current)}>
+      <ListItemButton onClick={() => (isOpen ? resetForm() : setIsOpen(true))}>
         <Typography sx={{ fontWeight: 700 }}>
           {isOpen ? "Close board form" : "+ Add board"}
         </Typography>
@@ -117,9 +117,14 @@ function AddBoardForm({ onCreated }: AddBoardFormProps) {
               onChange={updateColumn}
               onRemove={removeColumn}
             />
-            <Button type="submit" variant="contained" disabled={isSubmitting}>
-              {isSubmitting ? "Creating..." : "Create board"}
-            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button type="submit" variant="contained" disabled={isSubmitting}>
+                {isSubmitting ? "Creating..." : "Create board"}
+              </Button>
+              <Button type="button" onClick={resetForm} disabled={isSubmitting}>
+                Cancel
+              </Button>
+            </Stack>
           </Stack>
         </Box>
       </Collapse>
