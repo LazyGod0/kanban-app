@@ -3,9 +3,11 @@ import { AxiosError } from "axios";
 import { useNavigate } from "react-router-dom";
 import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
 import api from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 
 function SignIn() {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -17,11 +19,12 @@ function SignIn() {
     setIsSubmitting(true);
 
     try {
-      const response = await api.post<{ name: string }>("/auth/signin", {
+      await api.post("/auth/signin", {
         email,
         password,
       });
-      navigate("/auth", { replace: true, state: { name: response.data.name } });
+      await refreshUser();
+      navigate("/boards", { replace: true });
     } catch (requestError) {
       const error = requestError as AxiosError<{ detail?: string }>;
       setError(

@@ -10,9 +10,11 @@ import {
   Typography,
 } from "@mui/material";
 import api from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 
 function Register() {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [form, setForm] = useState({
     email: "",
     fname: "",
@@ -37,8 +39,9 @@ function Register() {
     setIsSubmitting(true);
 
     try {
-      const response = await api.post<{ name: string }>("/auth/register", form);
-      navigate("/auth", { replace: true, state: { name: response.data.name } });
+      await api.post("/auth/register", form);
+      await refreshUser();
+      navigate("/boards", { replace: true });
     } catch (requestError) {
       const error = requestError as AxiosError<{
         detail?: string | { msg: string }[];
