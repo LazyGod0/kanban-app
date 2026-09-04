@@ -13,7 +13,7 @@ from app.repositories.board_repository import BoardRepository
 from app.routes.column import router as column_router
 from app.services.board.board import BoardService
 from app.services.board.invitation import BoardInvitationService
-from app.services.email import EmailService
+from app.services.email import EmailRateLimitExceeded, EmailService
 from app.config.setting import settings
 
 router = APIRouter(prefix="/board")
@@ -45,6 +45,17 @@ async def invite_to_board(
 		return await invitation_service.invite_by_email(
 			board_id, owner_id, str(payload.email)
 		)
+	except ValueError as error:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail=str(error),
+		) from error
+	except EmailRateLimitExceeded as error:
+		raise HTTPException(
+			status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+			detail=str(error),
+			headers={"Retry-After": "1"},
+		) from error
 	except BoardNotFoundException as error:
 		raise HTTPException(
 			status_code=status.HTTP_404_NOT_FOUND,
