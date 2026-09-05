@@ -94,7 +94,7 @@ class TaskService:
             )
 
         assignee = await self.task_repository.assign_task(
-            board_id, column_id, task_id, assignee_id
+            board_id, column_id, task_id, assignee_id, user_id
         )
         if not assignee:
             raise BoardNotFoundException("Task or assignee not found")

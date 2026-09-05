@@ -108,16 +108,11 @@ SCHEMA_STATEMENTS: list[str] = [
         column_id   UUID NOT NULL REFERENCES columns(id) ON DELETE CASCADE,
         title       TEXT NOT NULL,
         description TEXT,
-        status      TEXT NOT NULL DEFAULT 'active'
-                    CHECK (status IN ('active', 'done', 'overdue')),
         due_date    TIMESTAMPTZ,
-        position    INTEGER NOT NULL DEFAULT 0,
         created_by  UUID NOT NULL REFERENCES users(id),
         created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
-    CREATE INDEX IF NOT EXISTS idx_tasks_column_position
-    ON tasks(column_id, position);
     CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
     """,
  
@@ -125,6 +120,7 @@ SCHEMA_STATEMENTS: list[str] = [
     CREATE TABLE IF NOT EXISTS task_assignees (
         task_id     UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
         user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        assigned_by UUID REFERENCES users(id) ON DELETE SET NULL,
         assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (task_id, user_id)
     );

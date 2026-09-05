@@ -59,7 +59,7 @@ class TaskRepository:
                     INNER JOIN columns AS c ON c.id = t.column_id
                     WHERE c.board_id = %s
                       AND c.id = %s
-                    ORDER BY t.position ASC, t.created_at ASC
+                    ORDER BY t.created_at ASC
                     """,
                     (board_id, column_id),
                 )
@@ -146,14 +146,15 @@ class TaskRepository:
         column_id: UUID,
         task_id: UUID,
         assignee_id: UUID,
+        assigned_by: UUID,
     ):
         async with self.pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as curr:
                 async with conn.transaction():
                     await curr.execute(
                         """
-                        INSERT INTO task_assignees (task_id, user_id)
-                        SELECT t.id, %s
+                        INSERT INTO task_assignees (task_id, user_id, assigned_by)
+                        SELECT t.id, %s, %s
                         FROM tasks AS t
                         INNER JOIN columns AS c ON c.id = t.column_id
                         INNER JOIN board_members AS bm ON bm.board_id = c.board_id
@@ -169,6 +170,7 @@ class TaskRepository:
                         """,
                         (
                             assignee_id,
+                            assigned_by,
                             task_id,
                             column_id,
                             board_id,
@@ -178,7 +180,7 @@ class TaskRepository:
                     )
                     await curr.execute(
                         """
-                        SELECT u.id, u.name, u.email
+                        SELECT u.id, u.name, u.email, ta.assigned_by
                         FROM task_assignees AS ta
                         INNER JOIN users AS u ON u.id = ta.user_id
                         WHERE ta.task_id = %s AND ta.user_id = %s
@@ -194,7 +196,7 @@ class TaskRepository:
             async with conn.cursor(row_factory=dict_row) as curr:
                 await curr.execute(
                     """
-                    SELECT u.id, u.name, u.email
+                    SELECT u.id, u.name, u.email, ta.assigned_by
                     FROM task_assignees AS ta
                     INNER JOIN users AS u ON u.id = ta.user_id
                     INNER JOIN tasks AS t ON t.id = ta.task_id
