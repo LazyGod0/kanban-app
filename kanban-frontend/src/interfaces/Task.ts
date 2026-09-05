@@ -7,4 +7,5 @@ export interface Task {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  assigneeIds?: string[];
 }

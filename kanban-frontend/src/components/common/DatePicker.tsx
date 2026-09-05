@@ -5,12 +5,14 @@ interface DatePickerComponentProps {
   onChange: (date: Dayjs | null) => void;
   value: Dayjs | null;
   label?: string;
+  readOnly?: boolean;
 }
 
 export default function DatePickerComponent({
   onChange,
   value,
   label,
+  readOnly = false,
 }: DatePickerComponentProps) {
   return (
     <DateTimePicker
@@ -20,6 +22,7 @@ export default function DatePickerComponent({
         },
       }}
       label={label}
+      readOnly={readOnly}
       onChange={onChange}
       defaultValue={dayjs()}
       value={value}

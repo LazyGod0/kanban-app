@@ -18,6 +18,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/Delete";
 import dayjs, { type Dayjs } from "dayjs";
 import api from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 import type { BoardMember } from "../../interfaces/Board";
 import type { Task } from "../../interfaces/Task";
 import DatePickerComponent from "../common/DatePicker";
@@ -49,6 +50,9 @@ export default function TaskDetailDialog({
   onUpdated,
   onDeleted,
 }: TaskDetailDialogProps) {
+  const { user } = useAuth();
+  const canDelete = user?.id === task.createdBy;
+  const canEdit = canDelete;
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [dueDate, setDueDate] = useState<Dayjs | null>(
@@ -193,7 +197,9 @@ export default function TaskDetailDialog({
                   label="Title"
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
-                  slotProps={{ htmlInput: { maxLength: 200 } }}
+                  slotProps={{
+                    htmlInput: { maxLength: 200, readOnly: !canEdit },
+                  }}
                   required
                   fullWidth
                   autoFocus
@@ -202,11 +208,16 @@ export default function TaskDetailDialog({
                   label="Description"
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
+                  slotProps={{ htmlInput: { readOnly: !canEdit } }}
                   multiline
                   minRows={3}
                   fullWidth
                 />
-                <DatePickerComponent value={dueDate} onChange={setDueDate} />
+                <DatePickerComponent
+                  value={dueDate}
+                  onChange={setDueDate}
+                  readOnly={!canEdit}
+                />
                 <Autocomplete
                   multiple
                   options={members}
@@ -218,6 +229,7 @@ export default function TaskDetailDialog({
                   isOptionEqualToValue={(option, value) =>
                     option.id === value.id
                   }
+                  readOnly={!canEdit || isLoading || isSubmitting}
                   renderValue={(values, getItemProps) =>
                     values.map((member, index) => (
                       <Chip
@@ -243,24 +255,32 @@ export default function TaskDetailDialog({
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button
-            color="error"
-            startIcon={<DeleteIcon />}
-            onClick={handleDelete}
-            disabled={isLoading || isSubmitting || isDeleting}
-          >
-            {isDeleting ? "Deleting..." : "Delete"}
-          </Button>
-          <Button onClick={onClose} disabled={isSubmitting || isDeleting}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={isLoading || isSubmitting || isDeleting || !title.trim()}
-          >
-            {isSubmitting ? "Saving..." : "Save"}
-          </Button>
+          {canEdit ? (
+            <>
+              <Button
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={handleDelete}
+                disabled={isLoading || isSubmitting || isDeleting}
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </Button>
+              <Button onClick={onClose} disabled={isSubmitting || isDeleting}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={
+                  isLoading || isSubmitting || isDeleting || !title.trim()
+                }
+              >
+                {isSubmitting ? "Saving..." : "Save"}
+              </Button>
+            </>
+          ) : (
+            <Button onClick={onClose}>Close</Button>
+          )}
         </DialogActions>
       </Stack>
     </Dialog>

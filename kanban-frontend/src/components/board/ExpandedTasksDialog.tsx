@@ -1,4 +1,10 @@
-import { Box, Dialog, DialogContent, DialogTitle, Typography } from "@mui/material";
+import {
+  Box,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Typography,
+} from "@mui/material";
 import type { Task } from "../../interfaces/Task";
 import TaskCard from "./TaskCard";
 
@@ -7,6 +13,9 @@ type ExpandedTasksDialogProps = {
   columnName?: string;
   tasks: Task[];
   onClose: () => void;
+  canDragTask: (task: Task) => boolean;
+  onTaskDragStart: (event: React.DragEvent<HTMLDivElement>, task: Task) => void;
+  onTaskDragEnd: () => void;
   onTaskClick: (task: Task) => void;
 };
 
@@ -15,13 +24,27 @@ export default function ExpandedTasksDialog({
   columnName,
   tasks,
   onClose,
+  canDragTask,
+  onTaskDragStart,
+  onTaskDragEnd,
   onTaskClick,
 }: ExpandedTasksDialogProps) {
+  const handleContentDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    const nextTarget = event.relatedTarget;
+    if (
+      !(nextTarget instanceof Node) ||
+      !event.currentTarget.contains(nextTarget)
+    ) {
+      onClose();
+    }
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle>{columnName}</DialogTitle>
       <DialogContent
         dividers
+        onDragLeave={handleContentDragLeave}
         sx={{
           maxHeight: "calc(100vh - 180px)",
           overflowY: "auto",
@@ -48,7 +71,9 @@ export default function ExpandedTasksDialog({
               <TaskCard
                 key={task.id}
                 task={task}
-                onDragStart={() => undefined}
+                onDragStart={onTaskDragStart}
+                onDragEnd={onTaskDragEnd}
+                canDrag={canDragTask(task)}
                 onClick={onTaskClick}
               />
             ))}

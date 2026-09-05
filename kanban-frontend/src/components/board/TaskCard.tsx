@@ -6,30 +6,35 @@ import { formatLocalDate } from "../../lib/date";
 type TaskCardProps = {
   task: Task;
   onDragStart: (event: DragEvent<HTMLDivElement>, task: Task) => void;
+  onDragEnd?: () => void;
+  canDrag?: boolean;
   onClick: (task: Task) => void;
 };
 
 export default function TaskCard({
   task,
   onDragStart,
+  onDragEnd,
+  canDrag = true,
   onClick,
 }: TaskCardProps) {
   return (
     <Paper
       component="article"
-      draggable
+      draggable={canDrag}
       onClick={() => onClick(task)}
-      onDragStart={(event: DragEvent<HTMLDivElement>) =>
-        onDragStart(event, task)
-      }
+      onDragStart={(event: DragEvent<HTMLDivElement>) => {
+        if (canDrag) onDragStart(event, task);
+      }}
+      onDragEnd={onDragEnd}
       sx={{
         p: 2,
         borderRadius: "2px",
-        cursor: "grab",
+        cursor: canDrag ? "grab" : "default",
         position: "relative",
         transform: "rotate(-0.7deg)",
         transition: "transform 180ms ease, box-shadow 180ms ease",
-        "&:active": { cursor: "grabbing" },
+        "&:active": { cursor: canDrag ? "grabbing" : "default" },
         "&:hover": {
           transform: "rotate(0deg) translateY(-4px)",
         },

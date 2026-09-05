@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type DragEvent } from "react";
 import { AxiosError } from "axios";
 import {
   Alert,
@@ -12,8 +12,10 @@ import {
   Typography,
 } from "@mui/material";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { useParams } from "react-router-dom";
 import api from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 import AddColumnDialog from "../../components/board/AddColumnDialog";
 import ColumnActions from "../../components/board/ColumnActions";
 import ExpandedTasksDialog from "../../components/board/ExpandedTasksDialog";
@@ -24,6 +26,7 @@ import type { Column } from "../../interfaces/Column";
 import type { Task } from "../../interfaces/Task";
 
 export default function BoardDetailPage() {
+  const { user } = useAuth();
   const { boardId } = useParams<{ boardId: string }>();
   const [board, setBoard] = useState<Board | null>(null);
   const [columns, setColumns] = useState<Column[]>([]);
@@ -87,7 +90,18 @@ export default function BoardDetailPage() {
           const taskResponse = await api.get<Task[]>(
             `/board/${boardId}/column/${column.id}/tasks`,
           );
-          return [column.id, taskResponse.data] as const;
+          const tasks = await Promise.all(
+            taskResponse.data.map(async (task) => {
+              const assigneeResponse = await api.get<{ id: string }[]>(
+                `/board/${boardId}/column/${column.id}/tasks/${task.id}/assignees`,
+              );
+              return {
+                ...task,
+                assigneeIds: assigneeResponse.data.map((member) => member.id),
+              };
+            }),
+          );
+          return [column.id, tasks] as const;
         }),
       );
 
@@ -142,9 +156,20 @@ export default function BoardDetailPage() {
     const response = await api.get<Task[]>(
       `/board/${boardId}/column/${task.columnId}/tasks`,
     );
+    const tasks = await Promise.all(
+      response.data.map(async (createdTask) => {
+        const assigneeResponse = await api.get<{ id: string }[]>(
+          `/board/${boardId}/column/${task.columnId}/tasks/${createdTask.id}/assignees`,
+        );
+        return {
+          ...createdTask,
+          assigneeIds: assigneeResponse.data.map((member) => member.id),
+        };
+      }),
+    );
     setTasksByColumn((current) => ({
       ...current,
-      [task.columnId]: response.data,
+      [task.columnId]: tasks,
     }));
   };
 
@@ -152,7 +177,10 @@ export default function BoardDetailPage() {
     setTasksByColumn((current) => ({
       ...current,
       [updatedTask.columnId]: (current[updatedTask.columnId] ?? []).map(
-        (task) => (task.id === updatedTask.id ? updatedTask : task),
+        (task) =>
+          task.id === updatedTask.id
+            ? { ...updatedTask, assigneeIds: task.assigneeIds }
+            : task,
       ),
     }));
   };
@@ -168,24 +196,88 @@ export default function BoardDetailPage() {
     );
   };
 
+  const handleTaskDragStart = (
+    event: DragEvent<HTMLDivElement>,
+    task: Task,
+  ) => {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData(
+      "application/json",
+      JSON.stringify({ taskId: task.id, columnId: task.columnId }),
+    );
+  };
+
+  const handleColumnDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  };
+
+  const handleColumnDrop = async (
+    event: DragEvent<HTMLDivElement>,
+    targetColumnId: string,
+  ) => {
+    event.preventDefault();
+    const transferData = event.dataTransfer.getData("application/json");
+    if (!transferData || !boardId) return;
+
+    const { taskId, columnId: sourceColumnId } = JSON.parse(transferData) as {
+      taskId?: string;
+      columnId?: string;
+    };
+    if (!taskId || !sourceColumnId || sourceColumnId === targetColumnId) return;
+
+    try {
+      await api.patch(
+        `/board/${boardId}/column/${sourceColumnId}/tasks/${taskId}`,
+        { columnId: targetColumnId },
+      );
+      await fetchColumns();
+    } catch (requestError) {
+      const responseError = requestError as AxiosError<{ detail?: string }>;
+      setError(responseError.response?.data?.detail ?? "Unable to move task.");
+    }
+  };
+
   if (isLoading) {
     return <CircularProgress />;
   }
 
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, py: 2 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+          py: 2,
+        }}
+      >
         <Typography variant="h5" component="h1" sx={{ fontWeight: 800 }}>
           Board columns
         </Typography>
-        {board?.isOwner && columns.length < 3 && (
-          <Button
-            sx={{ textTransform: "none" }}
-            onClick={() => setIsAddColumnOpen(true)}
-          >
-            <Typography>Add Column</Typography>
-          </Button>
-        )}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Tooltip title="Reload tasks">
+            <span>
+              <IconButton
+                color="primary"
+                aria-label="Reload tasks"
+                onClick={() => fetchColumns()}
+                disabled={isLoading}
+              >
+                <RefreshIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+          {board?.isOwner && columns.length < 3 && (
+            <Button
+              sx={{ textTransform: "none" }}
+              onClick={() => setIsAddColumnOpen(true)}
+            >
+              <Typography>Add Column</Typography>
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {error && <Alert severity="error">{error}</Alert>}
@@ -219,6 +311,8 @@ export default function BoardDetailPage() {
                     opacity: 1,
                   },
                 }}
+                onDragOver={handleColumnDragOver}
+                onDrop={(event) => handleColumnDrop(event, column.id)}
               >
                 <Box
                   sx={{
@@ -254,19 +348,22 @@ export default function BoardDetailPage() {
                     </Typography>
                   ) : (
                     <Stack spacing={1}>
-                      {(tasksByColumn[column.id] ?? []).map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          onDragStart={() => undefined}
-                          onClick={(selected) =>
-                            setSelectedTask({
-                              task: selected,
-                              columnId: column.id,
-                            })
-                          }
-                        />
-                      ))}
+                      {(tasksByColumn[column.id] ?? [])
+                        .slice(0, 5)
+                        .map((task) => (
+                          <TaskCard
+                            key={task.id}
+                            task={task}
+                            onDragStart={handleTaskDragStart}
+                            canDrag={task.assigneeIds?.includes(user?.id ?? "")}
+                            onClick={(selected) =>
+                              setSelectedTask({
+                                task: selected,
+                                columnId: column.id,
+                              })
+                            }
+                          />
+                        ))}
                     </Stack>
                   )}
                 </Box>
@@ -301,6 +398,11 @@ export default function BoardDetailPage() {
         columnName={expandedColumn?.name}
         tasks={expandedTasks}
         onClose={() => setExpandedColumnId(null)}
+        canDragTask={(task) =>
+          task.assigneeIds?.includes(user?.id ?? "") ?? false
+        }
+        onTaskDragStart={handleTaskDragStart}
+        onTaskDragEnd={() => setExpandedColumnId(null)}
         onTaskClick={(task: Task) =>
           setSelectedTask({
             task,
