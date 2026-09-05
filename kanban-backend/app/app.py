@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.lib.db import check_database,generate_schema, pool
 from app.routes.auth import router as auth_router
 from app.routes.board import router as board_router
+from app.routes.notification import router as notification_router
 from app.config.setting import settings
 
 @asynccontextmanager
@@ -30,3 +31,4 @@ app.add_middleware(
 )
 app.include_router(auth_router)
 app.include_router(board_router)
+app.include_router(notification_router)

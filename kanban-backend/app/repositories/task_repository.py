@@ -174,6 +174,20 @@ class TaskRepository:
                             assignee_id,
                         ),
                     )
+                    assignment_created = curr.rowcount > 0
+                    if assignment_created:
+                        await curr.execute(
+                            """
+                            INSERT INTO notifications
+                                (user_id, task_id, type, message)
+                            SELECT %s, t.id, 'task_assignment',
+                                   format('%%s assigned you to task "%%s"', assigner.name, t.title)
+                            FROM tasks AS t
+                            INNER JOIN users AS assigner ON assigner.id = %s
+                            WHERE t.id = %s
+                            """,
+                            (assignee_id, assigned_by, task_id),
+                        )
                     await curr.execute(
                         """
                         SELECT u.id, u.name, u.email, ta.assigned_by,
