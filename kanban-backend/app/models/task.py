@@ -15,6 +15,7 @@ class TaskUpdatePayload(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
     due_date: datetime | None = None
+    column_id: UUID | None = None
     model_config = ConfigDict(
         alias_generator=to_camel,
         validate_by_alias=True,

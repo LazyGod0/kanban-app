@@ -62,6 +62,10 @@ class TaskService:
         await self._check_column_access(board_id, column_id, user_id)
         values = payload.model_dump(exclude_unset=True, by_alias=False)
 
+        target_column_id = values.get("column_id")
+        if target_column_id and target_column_id != column_id:
+            await self._check_column_access(board_id, target_column_id, user_id)
+
         task = await self.task_repository.update_task(
             board_id, column_id, task_id, values
         )
@@ -73,7 +77,9 @@ class TaskService:
         self, board_id: UUID, column_id: UUID, task_id: UUID, user_id: UUID
     ) -> None:
         await self._check_column_access(board_id, column_id, user_id)
-        deleted = await self.task_repository.delete_task(board_id, column_id, task_id)
+        deleted = await self.task_repository.delete_task(
+            board_id, column_id, task_id, user_id
+        )
         if not deleted:
             raise BoardNotFoundException("Task not found")
 

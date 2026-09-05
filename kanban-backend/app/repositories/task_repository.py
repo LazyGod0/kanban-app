@@ -117,7 +117,7 @@ class TaskRepository:
                     return await curr.fetchone()
 
     async def delete_task(
-        self, board_id: UUID, column_id: UUID, task_id: UUID
+        self, board_id: UUID, column_id: UUID, task_id: UUID, user_id: UUID
     ) -> bool:
         async with self.pool.connection() as conn:
             async with conn.cursor() as curr:
@@ -130,8 +130,9 @@ class TaskRepository:
                           AND t.column_id = c.id
                           AND c.id = %s
                           AND c.board_id = %s
+                                                    AND t.created_by = %s
                         """,
-                        (task_id, column_id, board_id),
+                                                (task_id, column_id, board_id, user_id),
                     )
                     return curr.rowcount > 0
 
