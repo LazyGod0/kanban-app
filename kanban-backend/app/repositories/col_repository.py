@@ -117,6 +117,76 @@ class ColumnRepository:
                 async with conn.transaction():
                     await curr.execute(
                         """
+                        SELECT position
+                        FROM columns
+                        WHERE id = %s AND board_id = %s
+                        AND EXISTS (
+                            SELECT 1 FROM board_members
+                            WHERE board_id = columns.board_id
+                            AND user_id = %s AND role = 'owner'
+                        )
+                        FOR UPDATE
+                        """,
+                        (column_id, board_id, owner_id),
+                    )
+                    current_column = await curr.fetchone()
+                    if not current_column:
+                        return None
+
+                    current_position = current_column["position"]
+                    if position != current_position:
+                        await curr.execute(
+                            """
+                            UPDATE columns
+                            SET position = -1
+                            WHERE id = %s
+                            """,
+                            (column_id,),
+                        )
+
+                        if position < current_position:
+                            await curr.execute(
+                                """
+                                UPDATE columns
+                                SET position = -(position + 2)
+                                WHERE board_id = %s
+                                  AND position >= %s
+                                  AND position < %s
+                                """,
+                                (board_id, position, current_position),
+                            )
+                            await curr.execute(
+                                """
+                                UPDATE columns
+                                SET position = -position - 1
+                                WHERE board_id = %s
+                                  AND position < -1
+                                """,
+                                (board_id,),
+                            )
+                        else:
+                            await curr.execute(
+                                """
+                                UPDATE columns
+                                SET position = -(position + 2)
+                                WHERE board_id = %s
+                                  AND position > %s
+                                  AND position <= %s
+                                """,
+                                (board_id, current_position, position),
+                            )
+                            await curr.execute(
+                                """
+                                UPDATE columns
+                                SET position = -position - 3
+                                WHERE board_id = %s
+                                  AND position < -1
+                                """,
+                                (board_id,),
+                            )
+
+                    await curr.execute(
+                        """
                         UPDATE columns
                         SET name = %s, position = %s, updated_at = now()
                         WHERE id = %s AND board_id = %s
@@ -135,6 +205,21 @@ class ColumnRepository:
         async with self.pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as curr:
                 async with conn.transaction():
+                    await curr.execute("""
+                        SELECT position FROM columns
+                        WHERE id = %s AND board_id = %s
+                    """,
+                    (column_id,board_id)
+                    )
+                    
+                    result = await curr.fetchone() 
+                    
+                    position = result["position"]
+                    
+                    if position is None:
+                        return None
+                    
+                    
                     await curr.execute(
                         """
                         DELETE FROM columns
@@ -147,5 +232,12 @@ class ColumnRepository:
                         """,
                         (column_id, board_id, owner_id)
                     )
+                    
+                    await curr.execute(
+                                        """
+                                        UPDATE columns SET position = position - 1
+                                        WHERE position > %s AND board_id = %s
+                                        """,(position,board_id)
+                                        )
                     
                 return curr.rowcount
