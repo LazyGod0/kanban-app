@@ -175,9 +175,12 @@ class TaskRepository:
                     )
                     await curr.execute(
                         """
-                        SELECT u.id, u.name, u.email, ta.assigned_by
+                        SELECT u.id, u.name, u.email, ta.assigned_by,
+                               assigner.name AS assigned_by_name,
+                               assigner.email AS assigned_by_email
                         FROM task_assignees AS ta
                         INNER JOIN users AS u ON u.id = ta.user_id
+                        LEFT JOIN users AS assigner ON assigner.id = ta.assigned_by
                         WHERE ta.task_id = %s AND ta.user_id = %s
                         """,
                         (task_id, assignee_id),
@@ -191,7 +194,7 @@ class TaskRepository:
             async with conn.cursor(row_factory=dict_row) as curr:
                 await curr.execute(
                     """
-                    SELECT u.id, u.name, u.email, ta.assigned_by
+                    SELECT u.id, u.name, u.email
                     FROM task_assignees AS ta
                     INNER JOIN users AS u ON u.id = ta.user_id
                     INNER JOIN tasks AS t ON t.id = ta.task_id
@@ -204,6 +207,29 @@ class TaskRepository:
                     (task_id, column_id, board_id),
                 )
                 return await curr.fetchall()
+
+    async def find_task_assigner(
+        self, board_id: UUID, column_id: UUID, task_id: UUID
+    ):
+        async with self.pool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as curr:
+                await curr.execute(
+                    """
+                    SELECT DISTINCT assigner.id,
+                                    assigner.name,
+                                    assigner.email
+                    FROM task_assignees AS ta
+                    INNER JOIN tasks AS t ON t.id = ta.task_id
+                    INNER JOIN columns AS c ON c.id = t.column_id
+                    INNER JOIN users AS assigner ON assigner.id = ta.assigned_by
+                    WHERE ta.task_id = %s
+                      AND c.id = %s
+                      AND c.board_id = %s
+                    LIMIT 1
+                    """,
+                    (task_id, column_id, board_id),
+                )
+                return await curr.fetchone()
 
     async def unassign_task(
         self,

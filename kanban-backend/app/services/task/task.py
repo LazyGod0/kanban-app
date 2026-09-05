@@ -102,9 +102,22 @@ class TaskService:
         self, board_id: UUID, column_id: UUID, task_id: UUID, user_id: UUID
     ):
         await self._check_column_access(board_id, column_id, user_id)
-        return await self.task_repository.find_task_assignees(
+        assignees = await self.task_repository.find_task_assignees(
             board_id, column_id, task_id
         )
+        if not assignees:
+            return assignees
+
+        assigner = await self.task_repository.find_task_assigner(
+            board_id, column_id, task_id
+        )
+        if assigner:
+            assignees[0].update(
+                assigned_by=assigner["id"],
+                assigned_by_name=assigner["name"],
+                assigned_by_email=assigner["email"],
+            )
+        return assignees
 
     async def unassign_task(
         self,

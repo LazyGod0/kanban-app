@@ -42,6 +42,8 @@ class TaskAssigneeResponse(BaseModel):
     name: str
     email: str
     assigned_by: UUID | None = None
+    assigned_by_name: str | None = None
+    assigned_by_email: str | None = None
     
     model_config = ConfigDict(
         alias_generator=to_camel,
