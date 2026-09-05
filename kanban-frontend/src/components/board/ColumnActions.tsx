@@ -13,16 +13,21 @@ import {
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import AddTaskIcon from "@mui/icons-material/PlaylistAdd";
 import api from "../../lib/api";
 import type { Column } from "../../interfaces/Column";
+import type { Task } from "../../interfaces/Task";
 import DeletePopUp from "../common/DeletePopUp";
+import TaskDialog from "./TaskDialog";
 
 type ColumnActionsProps = {
   boardId: string;
   column: Column;
   maxPosition: number;
+  canManage: boolean;
   onUpdated: (column: Column) => void;
   onDeleted: (columnId: string) => void;
+  onTaskCreated: (task: Task) => void;
 };
 
 type ApiError = {
@@ -33,12 +38,15 @@ function ColumnActions({
   boardId,
   column,
   maxPosition,
+  canManage,
   onUpdated,
   onDeleted,
+  onTaskCreated,
 }: ColumnActionsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletePopUpOpen, setIsDeletePopUpOpen] = useState(false);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [name, setName] = useState(column.name);
   const [position, setPosition] = useState(column.position);
   const [error, setError] = useState("");
@@ -93,32 +101,54 @@ function ColumnActions({
           "&:focus-within": { opacity: 1 },
         }}
       >
-        <Tooltip title="Edit column">
+        <Tooltip title="Add task">
           <IconButton
             size="small"
-            color="primary"
-            aria-label={`Edit ${column.name}`}
-            onClick={() => {
-              setName(column.name);
-              setPosition(column.position);
-              setError("");
-              setIsEditing(true);
-            }}
+            color="success"
+            aria-label={`Add task to ${column.name}`}
+            onClick={() => setIsTaskDialogOpen(true)}
           >
-            <EditIcon />
+            <AddTaskIcon />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Delete column">
-          <IconButton
-            size="small"
-            color="error"
-            aria-label={`Delete ${column.name}`}
-            onClick={() => setIsDeletePopUpOpen(true)}
-          >
-            <DeleteIcon />
-          </IconButton>
-        </Tooltip>
+        {canManage && (
+          <>
+            <Tooltip title="Edit column">
+              <IconButton
+                size="small"
+                color="primary"
+                aria-label={`Edit ${column.name}`}
+                onClick={() => {
+                  setName(column.name);
+                  setPosition(column.position);
+                  setError("");
+                  setIsEditing(true);
+                }}
+              >
+                <EditIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete column">
+              <IconButton
+                size="small"
+                color="error"
+                aria-label={`Delete ${column.name}`}
+                onClick={() => setIsDeletePopUpOpen(true)}
+              >
+                <DeleteIcon />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
       </Stack>
+      <TaskDialog
+        open={isTaskDialogOpen}
+        boardId={boardId}
+        columnId={column.id}
+        columnName={column.name}
+        onClose={() => setIsTaskDialogOpen(false)}
+        onCreated={onTaskCreated}
+      />
       <Dialog
         open={isEditing}
         onClose={() => setIsEditing(false)}
