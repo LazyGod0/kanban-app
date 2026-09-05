@@ -5,29 +5,48 @@ import {
   Box,
   Button,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Grid,
-  TextField,
+  IconButton,
+  Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import { useParams } from "react-router-dom";
 import api from "../../lib/api";
+import AddColumnDialog from "../../components/board/AddColumnDialog";
 import ColumnActions from "../../components/board/ColumnActions";
+import ExpandedTasksDialog from "../../components/board/ExpandedTasksDialog";
+import TaskCard from "../../components/board/TaskCard";
+import TaskDetailDialog from "../../components/board/TaskDetailDialog";
 import type { Board } from "../../interfaces/Board";
 import type { Column } from "../../interfaces/Column";
+import type { Task } from "../../interfaces/Task";
 
 export default function BoardDetailPage() {
   const { boardId } = useParams<{ boardId: string }>();
   const [board, setBoard] = useState<Board | null>(null);
   const [columns, setColumns] = useState<Column[]>([]);
+  const [tasksByColumn, setTasksByColumn] = useState<Record<string, Task[]>>(
+    {},
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isAddColumnOpen, setIsAddColumnOpen] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [error, setError] = useState("");
+  const [selectedTask, setSelectedTask] = useState<{
+    task: Task;
+    columnId: string;
+  } | null>(null);
+  const [expandedColumnId, setExpandedColumnId] = useState<string | null>(null);
+
+  const expandedColumn = columns.find(
+    (column) => column.id === expandedColumnId,
+  );
+  const expandedTasks = expandedColumn
+    ? (tasksByColumn[expandedColumn.id] ?? [])
+    : [];
 
   useEffect(() => {
     if (!boardId) return;
@@ -60,11 +79,20 @@ export default function BoardDetailPage() {
     setError("");
     try {
       const response = await api.get<Column[]>(`/board/${boardId}/column`);
-      setColumns(
-        [...response.data].sort(
-          (left, right) => left.position - right.position,
-        ),
+      const nextColumns = [...response.data].sort(
+        (left, right) => left.position - right.position,
       );
+      const taskResponses = await Promise.all(
+        nextColumns.map(async (column) => {
+          const taskResponse = await api.get<Task[]>(
+            `/board/${boardId}/column/${column.id}/tasks`,
+          );
+          return [column.id, taskResponse.data] as const;
+        }),
+      );
+
+      setColumns(nextColumns);
+      setTasksByColumn(Object.fromEntries(taskResponses));
     } catch (requestError) {
       const responseError = requestError as AxiosError<{ detail?: string }>;
       setError(
@@ -103,8 +131,41 @@ export default function BoardDetailPage() {
     }
   };
 
-  const handleColumnDeleted = async (_columnId: string) => {
+  const handleColumnDeleted = async (columnId: string) => {
+    setExpandedColumnId((current) => (current === columnId ? null : current));
     await fetchColumns();
+  };
+
+  const handleTaskCreated = async (task: Task) => {
+    if (!boardId) return;
+
+    const response = await api.get<Task[]>(
+      `/board/${boardId}/column/${task.columnId}/tasks`,
+    );
+    setTasksByColumn((current) => ({
+      ...current,
+      [task.columnId]: response.data,
+    }));
+  };
+
+  const handleTaskUpdated = (updatedTask: Task) => {
+    setTasksByColumn((current) => ({
+      ...current,
+      [updatedTask.columnId]: (current[updatedTask.columnId] ?? []).map(
+        (task) => (task.id === updatedTask.id ? updatedTask : task),
+      ),
+    }));
+  };
+
+  const handleTaskDeleted = (taskId: string) => {
+    setTasksByColumn((current) =>
+      Object.fromEntries(
+        Object.entries(current).map(([columnId, tasks]) => [
+          columnId,
+          tasks.filter((task) => task.id !== taskId),
+        ]),
+      ),
+    );
   };
 
   if (isLoading) {
@@ -170,63 +231,95 @@ export default function BoardDetailPage() {
                   <Typography sx={{ fontWeight: 700 }}>
                     {column.name}
                   </Typography>
-                  {board?.isOwner && (
+                  {board && (
                     <ColumnActions
                       boardId={boardId ?? ""}
                       column={column}
                       maxPosition={columns.length - 1}
+                      canManage={board.isOwner}
                       onUpdated={handleColumnUpdated}
                       onDeleted={handleColumnDeleted}
+                      onTaskCreated={handleTaskCreated}
                     />
                   )}
                 </Box>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mt: 4, textAlign: "center" }}
-                >
-                  No tasks have been added to this column.
-                </Typography>
+                <Box sx={{ mt: 3, minHeight: 110, pb: 5 }}>
+                  {(tasksByColumn[column.id] ?? []).length === 0 ? (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ textAlign: "center" }}
+                    >
+                      No tasks have been added to this column.
+                    </Typography>
+                  ) : (
+                    <Stack spacing={1}>
+                      {(tasksByColumn[column.id] ?? []).map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onDragStart={() => undefined}
+                          onClick={(selected) =>
+                            setSelectedTask({
+                              task: selected,
+                              columnId: column.id,
+                            })
+                          }
+                        />
+                      ))}
+                    </Stack>
+                  )}
+                </Box>
+                <Tooltip title="View all tasks">
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    aria-label={`Expand ${column.name}`}
+                    onClick={() => setExpandedColumnId(column.id)}
+                    sx={{ position: "absolute", right: 8, bottom: 8 }}
+                  >
+                    <OpenInFullIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Grid>
             ))}
           </Grid>
         </Box>
       )}
 
-      <Dialog
+      <AddColumnDialog
         open={isAddColumnOpen}
-        onClose={() => !isAddingColumn && setIsAddColumnOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Add column</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Column name"
-            value={newColumnName}
-            onChange={(event) => setNewColumnName(event.target.value)}
-            required
-            fullWidth
-            autoFocus
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => setIsAddColumnOpen(false)}
-            disabled={isAddingColumn}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleAddColumn}
-            variant="contained"
-            disabled={!newColumnName.trim() || isAddingColumn}
-          >
-            {isAddingColumn ? "Adding..." : "Add column"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        columnName={newColumnName}
+        isAdding={isAddingColumn}
+        onColumnNameChange={setNewColumnName}
+        onClose={() => setIsAddColumnOpen(false)}
+        onSubmit={handleAddColumn}
+      />
+
+      <ExpandedTasksDialog
+        open={Boolean(expandedColumn)}
+        columnName={expandedColumn?.name}
+        tasks={expandedTasks}
+        onClose={() => setExpandedColumnId(null)}
+        onTaskClick={(task: Task) =>
+          setSelectedTask({
+            task,
+            columnId: expandedColumn?.id ?? "",
+          })
+        }
+      />
+
+      {selectedTask && (
+        <TaskDetailDialog
+          open
+          boardId={boardId ?? ""}
+          columnId={selectedTask.columnId}
+          task={selectedTask.task}
+          onClose={() => setSelectedTask(null)}
+          onUpdated={handleTaskUpdated}
+          onDeleted={handleTaskDeleted}
+        />
+      )}
     </Box>
   );
 }
