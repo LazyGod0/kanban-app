@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from app.errors.board import BoardNotFoundException
+from app.repositories.board_invite_repository import BoardInviteRepository
+from app.repositories.board_member_repository import BoardMemberRepository
 from app.repositories.board_repository import BoardRepository
 from app.repositories.user_repository import UserRepository
 
@@ -9,9 +11,13 @@ class BoardInvitationService:
     def __init__(
         self,
         board_repository: BoardRepository,
+        member_repository: BoardMemberRepository,
+        invite_repository: BoardInviteRepository,
         user_repository: UserRepository,
     ):
         self.board_repository = board_repository
+        self.member_repository = member_repository
+        self.invite_repository = invite_repository
         self.user_repository = user_repository
 
     async def invite_by_email(
@@ -34,16 +40,16 @@ class BoardInvitationService:
         if recipient["id"] == owner_id:
             raise ValueError("You cannot invite yourself")
 
-        if await self.board_repository.is_member(board_id, recipient["id"]):
+        if await self.member_repository.is_member(board_id, recipient["id"]):
             raise ValueError("User is already a member of this board")
 
-        if await self.board_repository.has_pending_invite(
+        if await self.invite_repository.has_pending_invite(
             board_id, recipient["id"]
         ):
             raise ValueError("User already has a pending invitation")
 
         expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-        return await self.board_repository.create_invite(
+        return await self.invite_repository.create_invite(
             board_id=board_id,
             invited_user_id=recipient["id"],
             invited_email=recipient_email,
@@ -52,20 +58,20 @@ class BoardInvitationService:
         )
 
     async def list_pending_invites(self, user_id: UUID):
-        return await self.board_repository.list_pending_invites(user_id)
+        return await self.invite_repository.list_pending_invites(user_id)
 
     async def accept_invite(
         self,
         invite_id: UUID,
         user_id: UUID,
     ):
-        invite = await self.board_repository.accept_invite(invite_id, user_id)
+        invite = await self.invite_repository.accept_invite(invite_id, user_id)
         if not invite:
             raise BoardNotFoundException("Invitation is invalid or expired")
         return invite
 
     async def reject_invite(self, invite_id: UUID, user_id: UUID):
-        invite = await self.board_repository.reject_invite(invite_id, user_id)
+        invite = await self.invite_repository.reject_invite(invite_id, user_id)
         if not invite:
             raise BoardNotFoundException("Invitation is invalid or expired")
         return invite

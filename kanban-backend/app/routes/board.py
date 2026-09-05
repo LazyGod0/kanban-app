@@ -13,6 +13,8 @@ from app.models.invite import (
  BoardInviteActionResponse,
 )
 from app.repositories.board_repository import BoardRepository
+from app.repositories.board_member_repository import BoardMemberRepository
+from app.repositories.board_invite_repository import BoardInviteRepository
 from app.repositories.user_repository import UserRepository
 from app.routes.column import router as column_router
 from app.services.board.board import BoardService
@@ -20,9 +22,13 @@ from app.services.board.invitation import BoardInvitationService
 
 router = APIRouter(prefix="/board")
 board_repository = BoardRepository(pool)
-board_service = BoardService(board_repository)
+member_repository = BoardMemberRepository(pool)
+invite_repository = BoardInviteRepository(pool)
+board_service = BoardService(board_repository, member_repository)
 user_repository = UserRepository(pool)
-invitation_service = BoardInvitationService(board_repository, user_repository)
+invitation_service = BoardInvitationService(
+	board_repository, member_repository, invite_repository, user_repository
+)
 
 @router.post("", response_model=BoardResponse, status_code=status.HTTP_201_CREATED, tags=["Kanban Board"])
 async def create_board(payload: BoardPayload,user_id: UUID = Depends(get_current_user_id)):
