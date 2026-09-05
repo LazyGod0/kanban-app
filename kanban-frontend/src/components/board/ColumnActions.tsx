@@ -11,8 +11,8 @@ import {
   TextField,
   Tooltip,
 } from "@mui/material";
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import api from "../../lib/api";
 import type { Column } from "../../interfaces/Column";
 import DeletePopUp from "../common/DeletePopUp";
@@ -20,6 +20,7 @@ import DeletePopUp from "../common/DeletePopUp";
 type ColumnActionsProps = {
   boardId: string;
   column: Column;
+  maxPosition: number;
   onUpdated: (column: Column) => void;
   onDeleted: (columnId: string) => void;
 };
@@ -31,6 +32,7 @@ type ApiError = {
 function ColumnActions({
   boardId,
   column,
+  maxPosition,
   onUpdated,
   onDeleted,
 }: ColumnActionsProps) {
@@ -38,19 +40,20 @@ function ColumnActions({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletePopUpOpen, setIsDeletePopUpOpen] = useState(false);
   const [name, setName] = useState(column.name);
+  const [position, setPosition] = useState(column.position);
   const [error, setError] = useState("");
 
   const updateColumn = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const nextName = name.trim();
-    if (!nextName) return;
+    if (!nextName || position < 0 || position > maxPosition) return;
 
     setIsEditing(true);
     setError("");
     try {
       const response = await api.patch<Column>(
         `/board/${boardId}/column/${column.id}`,
-        { name: nextName, position: column.position },
+        { name: nextName, position },
       );
       onUpdated(response.data);
       setIsEditing(false);
@@ -95,9 +98,14 @@ function ColumnActions({
             size="small"
             color="primary"
             aria-label={`Edit ${column.name}`}
-            onClick={() => setIsEditing(true)}
+            onClick={() => {
+              setName(column.name);
+              setPosition(column.position);
+              setError("");
+              setIsEditing(true);
+            }}
           >
-            <EditIcon/>
+            <EditIcon />
           </IconButton>
         </Tooltip>
         <Tooltip title="Delete column">
@@ -107,7 +115,7 @@ function ColumnActions({
             aria-label={`Delete ${column.name}`}
             onClick={() => setIsDeletePopUpOpen(true)}
           >
-            <DeleteIcon/>
+            <DeleteIcon />
           </IconButton>
         </Tooltip>
       </Stack>
@@ -129,11 +137,28 @@ function ColumnActions({
               autoFocus
               sx={{ mt: 1 }}
             />
+            <TextField
+              label="Position"
+              type="number"
+              value={position}
+              onChange={(event) => setPosition(Number(event.target.value))}
+              slotProps={{
+                htmlInput: { min: 0, max: maxPosition, step: 1 },
+              }}
+              helperText={`Choose a position from 0 to ${maxPosition}. Other columns will move automatically.`}
+              required
+              fullWidth
+              sx={{ mt: 2 }}
+            />
             {error && <p>{error}</p>}
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setIsEditing(false)}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={!name.trim()}>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={!name.trim() || position < 0 || position > maxPosition}
+            >
               Save
             </Button>
           </DialogActions>

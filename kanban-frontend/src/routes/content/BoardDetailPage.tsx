@@ -1,57 +1,110 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AxiosError } from "axios";
-import { Alert, Box, CircularProgress, Grid, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Grid,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useParams } from "react-router-dom";
 import api from "../../lib/api";
 import ColumnActions from "../../components/board/ColumnActions";
+import type { Board } from "../../interfaces/Board";
 import type { Column } from "../../interfaces/Column";
 
 export default function BoardDetailPage() {
   const { boardId } = useParams<{ boardId: string }>();
+  const [board, setBoard] = useState<Board | null>(null);
   const [columns, setColumns] = useState<Column[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddColumnOpen, setIsAddColumnOpen] = useState(false);
+  const [newColumnName, setNewColumnName] = useState("");
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!boardId) return;
 
-    const loadColumns = async () => {
+    const fetchBoard = async () => {
       setIsLoading(true);
       setError("");
 
       try {
-        const response = await api.get<Column[]>(`/board/${boardId}/column`);
-        setColumns(
-          [...response.data].sort(
-            (left, right) => left.position - right.position,
-          ),
-        );
+        const boardResponse = await api.get<Board>(`/board/${boardId}`);
+        setBoard(boardResponse.data);
       } catch (requestError) {
         const responseError = requestError as AxiosError<{ detail?: string }>;
         setError(
           responseError.response?.data?.detail ??
-            "Unable to load columns for this board.",
+            "Unable to load board information.",
         );
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadColumns();
+    fetchBoard();
   }, [boardId]);
 
-  const handleColumnUpdated = (updatedColumn: Column) => {
-    setColumns((current) =>
-      current.map((column) =>
-        column.id === updatedColumn.id
-          ? { ...column, ...updatedColumn }
-          : column,
-      ),
-    );
+  const fetchColumns = useCallback(async () => {
+    if (!boardId) return;
+
+    setIsLoading(true);
+    setError("");
+    try {
+      const response = await api.get<Column[]>(`/board/${boardId}/column`);
+      setColumns(
+        [...response.data].sort(
+          (left, right) => left.position - right.position,
+        ),
+      );
+    } catch (requestError) {
+      const responseError = requestError as AxiosError<{ detail?: string }>;
+      setError(
+        responseError.response?.data?.detail ?? "Unable to load columns.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [boardId]);
+
+  useEffect(() => {
+    fetchColumns();
+  }, [fetchColumns]);
+
+  const handleColumnUpdated = async (_updatedColumn: Column) => {
+    await fetchColumns();
   };
 
-  const handleColumnDeleted = (columnId: string) => {
-    setColumns((current) => current.filter((column) => column.id !== columnId));
+  const handleAddColumn = async () => {
+    if (!boardId || !newColumnName.trim()) return;
+
+    setIsAddingColumn(true);
+    setError("");
+    try {
+      await api.post<Column[]>(`/board/${boardId}/column`, [
+        { name: newColumnName.trim(), position: columns.length },
+      ]);
+      await fetchColumns();
+      setNewColumnName("");
+      setIsAddColumnOpen(false);
+    } catch (requestError) {
+      const responseError = requestError as AxiosError<{ detail?: string }>;
+      setError(responseError.response?.data?.detail ?? "Unable to add column.");
+    } finally {
+      setIsAddingColumn(false);
+    }
+  };
+
+  const handleColumnDeleted = async (_columnId: string) => {
+    await fetchColumns();
   };
 
   if (isLoading) {
@@ -60,9 +113,20 @@ export default function BoardDetailPage() {
 
   return (
     <Box>
-      <Typography variant="h5" component="h1" sx={{ mb: 2, fontWeight: 800 }}>
-        Board columns
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, py: 2 }}>
+        <Typography variant="h5" component="h1" sx={{ fontWeight: 800 }}>
+          Board columns
+        </Typography>
+        {board?.isOwner && columns.length < 3 && (
+          <Button
+            sx={{ textTransform: "none" }}
+            onClick={() => setIsAddColumnOpen(true)}
+          >
+            <Typography>Add Column</Typography>
+          </Button>
+        )}
+      </Box>
+
       {error && <Alert severity="error">{error}</Alert>}
       {!error && columns.length === 0 && (
         <Typography color="text.secondary">
@@ -106,12 +170,15 @@ export default function BoardDetailPage() {
                   <Typography sx={{ fontWeight: 700 }}>
                     {column.name}
                   </Typography>
-                  <ColumnActions
-                    boardId={boardId ?? ""}
-                    column={column}
-                    onUpdated={handleColumnUpdated}
-                    onDeleted={handleColumnDeleted}
-                  />
+                  {board?.isOwner && (
+                    <ColumnActions
+                      boardId={boardId ?? ""}
+                      column={column}
+                      maxPosition={columns.length - 1}
+                      onUpdated={handleColumnUpdated}
+                      onDeleted={handleColumnDeleted}
+                    />
+                  )}
                 </Box>
                 <Typography
                   variant="body2"
@@ -125,6 +192,41 @@ export default function BoardDetailPage() {
           </Grid>
         </Box>
       )}
+
+      <Dialog
+        open={isAddColumnOpen}
+        onClose={() => !isAddingColumn && setIsAddColumnOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Add column</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Column name"
+            value={newColumnName}
+            onChange={(event) => setNewColumnName(event.target.value)}
+            required
+            fullWidth
+            autoFocus
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setIsAddColumnOpen(false)}
+            disabled={isAddingColumn}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAddColumn}
+            variant="contained"
+            disabled={!newColumnName.trim() || isAddingColumn}
+          >
+            {isAddingColumn ? "Adding..." : "Add column"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
