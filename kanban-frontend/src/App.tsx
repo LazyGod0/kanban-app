@@ -13,6 +13,8 @@ import SignIn from "./routes/auth/SignInPage";
 import BoardPage from "./routes/content/BoardPage";
 import BoardDetailPage from "./routes/content/BoardDetailPage";
 import BoardLayout from "./layout/BoardLayout";
+import { LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
 function AppLayout() {
   return <Outlet />;
@@ -21,23 +23,25 @@ function AppLayout() {
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/" element={<AppLayout />}>
-            <Route index element={<Navigate to="auth" replace />} />
-            <Route path="auth" element={<AuthLayout />}>
-              <Route index element={<SignIn />} />
-              <Route path="register" element={<Register />} />
-            </Route>
-            <Route element={<ProtectedRoute />}>
-              <Route element={<BoardLayout />}>
-                <Route path="boards" element={<BoardPage />}/>
-                <Route path="boards/:boardId" element={<BoardDetailPage />}/>
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<AppLayout />}>
+              <Route index element={<Navigate to="auth" replace />} />
+              <Route path="auth" element={<AuthLayout />}>
+                <Route index element={<SignIn />} />
+                <Route path="register" element={<Register />} />
+              </Route>
+              <Route element={<ProtectedRoute />}>
+                <Route element={<BoardLayout />}>
+                  <Route path="boards" element={<BoardPage />} />
+                  <Route path="boards/:boardId" element={<BoardDetailPage />} />
+                </Route>
               </Route>
             </Route>
-          </Route>
-        </Routes>
-      </AuthProvider>
+          </Routes>
+        </AuthProvider>
+      </LocalizationProvider>
     </BrowserRouter>
   );
 }
