@@ -29,9 +29,7 @@ class TaskService:
             column_id=column_id,
             title=payload.title,
             description=payload.description,
-            task_status=payload.status,
             due_date=payload.due_date,
-            position=payload.position,
             created_by=user_id,
         )
         if not task:

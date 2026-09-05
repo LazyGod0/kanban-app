@@ -1,15 +1,11 @@
 from datetime import datetime
-from typing import Literal
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
-TaskStatus = Literal["active", "done", "overdue"]
-
 class TaskPayload(BaseModel):
     title: str = Field(min_length=1, max_length=200)
-    status: TaskStatus = "active"
+    description: str | None = None
     due_date: datetime | None = None
-
     model_config = ConfigDict(
         alias_generator=to_camel,
         validate_by_alias=True,
@@ -19,7 +15,6 @@ class TaskUpdatePayload(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
     due_date: datetime | None = None
-
     model_config = ConfigDict(
         alias_generator=to_camel,
         validate_by_alias=True,
@@ -47,7 +42,7 @@ class TaskAssigneeResponse(BaseModel):
     name: str
     email: str
     assigned_by: UUID | None = None
-
+    
     model_config = ConfigDict(
         alias_generator=to_camel,
         validate_by_name=True,

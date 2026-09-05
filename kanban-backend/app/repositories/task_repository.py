@@ -13,9 +13,7 @@ class TaskRepository:
         column_id: UUID,
         title: str,
         description: str | None,
-        task_status: str,
         due_date: datetime | None,
-        position: int,
         created_by: UUID,
     ):
         async with self.pool.connection() as conn:
@@ -24,9 +22,8 @@ class TaskRepository:
                     await curr.execute(
                         """
                         INSERT INTO tasks
-                            (column_id, title, description, status, due_date,
-                             position, created_by)
-                        SELECT %s, %s, %s, %s, %s, %s, %s
+                            (column_id, title, description, due_date, created_by)
+                        SELECT %s, %s, %s, %s, %s
                         WHERE EXISTS (
                             SELECT 1 FROM columns
                             WHERE id = %s AND board_id = %s
@@ -37,9 +34,7 @@ class TaskRepository:
                             column_id,
                             title,
                             description,
-                            task_status,
                             due_date,
-                            position,
                             created_by,
                             column_id,
                             board_id,
