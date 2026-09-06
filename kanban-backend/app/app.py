@@ -17,7 +17,23 @@ async def lifespan(app: FastAPI):
     finally:
         await pool.close()
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    openapi_tags=[
+        {
+            "name": "Kanban Board",
+            "description": "Create, view, update, and delete boards.",
+        },
+        {
+            "name": "Board Members",
+            "description": "View and manage members of a board.",
+        },
+        {
+            "name": "Board Invitations",
+            "description": "Create and respond to board invitations.",
+        },
+    ],
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

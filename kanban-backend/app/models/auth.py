@@ -5,23 +5,44 @@ from pydantic import BaseModel,Field,EmailStr,model_validator,ConfigDict
 from pydantic.alias_generators import to_camel
   
 class SignInPayload(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=8,pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%]).{8,}$")
+    """Credentials required to sign in."""
+
+    email: EmailStr = Field(description="Account email address.")
+    password: str = Field(
+        min_length=8,
+        pattern=r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%]).{8,}$",
+        description="At least 8 characters with uppercase, lowercase, number, and one of !@#$%.",
+    )
     
     model_config = ConfigDict(
         regex_engine="python-re",
+        json_schema_extra={
+            "examples": [
+                {
+                    "email": "alex@example.com",
+                    "password": "Secure@123",
+                }
+            ]
+        },
         
     )
     
 class RegisterPayload(BaseModel):
-    email: EmailStr
-    fname: str = Field(min_length=1,max_length=50)
-    lname:str = Field(min_length=1,max_length=50)
+    """User details required to create an account."""
+
+    email: EmailStr = Field(description="Email address for the new account.")
+    fname: str = Field(min_length=1, max_length=50, description="First name.")
+    lname: str = Field(min_length=1, max_length=50, description="Last name.")
     password: str = Field(
         min_length=8,
-        pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%]).{8,}$"
+        pattern=r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%]).{8,}$",
+        description="At least 8 characters with uppercase, lowercase, number, and one of !@#$%.",
     )
-    confirmed_password:str =Field(min_length=8,pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%]).{8,}$")
+    confirmed_password: str = Field(
+        min_length=8,
+        pattern=r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%]).{8,}$",
+        description="Must match password and follow the same password policy.",
+    )
     
     @model_validator(mode="after")
     def check_passwd_match(self)->Self:
@@ -33,13 +54,40 @@ class RegisterPayload(BaseModel):
         regex_engine="python-re",
         alias_generator=to_camel,
         validate_by_alias=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "email": "alex@example.com",
+                    "fname": "Alex",
+                    "lname": "Morgan",
+                    "password": "Secure@123",
+                    "confirmedPassword": "Secure@123",
+                },
+                {
+                    "email": "alex@example.com",
+                    "fname": "Alex",
+                    "lname": "Morgan",
+                    "password": "weakpassword",
+                    "confirmedPassword": "weakpassword",
+                },
+                {
+                    "email": "alex@example.com",
+                    "fname": "Alex",
+                    "lname": "Morgan",
+                    "password": "Secure@123",
+                    "confirmedPassword": "Different@123",
+                },
+            ]
+        },
     )
     
 class UserResponse(BaseModel):
-    id: UUID
-    name: str
-    email: EmailStr
-    created_at: datetime
+    """Public user profile returned by authentication endpoints."""
+
+    id: UUID = Field(description="Unique user identifier.")
+    name: str = Field(description="User display name.")
+    email: EmailStr = Field(description="User email address.")
+    created_at: datetime = Field(description="Account creation timestamp.")
 
     model_config = ConfigDict(
         alias_generator=to_camel,

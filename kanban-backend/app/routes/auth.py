@@ -5,7 +5,7 @@ from app.models.auth import RegisterPayload,SignInPayload, UserResponse
 from app.services.auth.auth import AuthService
 from app.errors.auth import ForbiddenException, UnauthorizedException
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 auth_service = AuthService(pool)
 
 def set_auth_cookies(response: Response, tokens: dict[str, str]) -> None:
@@ -32,6 +32,8 @@ def clear_auth_cookies(response: Response) -> None:
     "/register",
     status_code=status.HTTP_201_CREATED,
     response_model=UserResponse,
+    summary="Register an account",
+    description="Create a new user account.",
 )
 async def register(payload: RegisterPayload, response: Response):
     try:
@@ -45,7 +47,12 @@ async def register(payload: RegisterPayload, response: Response):
         ) from error
 
 
-@router.post("/signin", response_model=UserResponse)
+@router.post(
+    "/signin",
+    response_model=UserResponse,
+    summary="Sign in",
+    description="Sign in and set authentication cookies.",
+)
 async def signin(payload: SignInPayload, response: Response):
     try:
         result = await auth_service.signin(payload)
@@ -59,10 +66,17 @@ async def signin(payload: SignInPayload, response: Response):
         ) from error
 
 
-@router.post("/refresh")
+@router.post(
+    "/refresh",
+    summary="Refresh access token",
+    description="Issue a new access token from the refresh cookie.",
+)
 async def refresh(
     response: Response,
-    refresh_token: str | None = Cookie(default=None),
+    refresh_token: str | None = Cookie(
+        default=None,
+        description="Refresh token stored in the authentication cookie.",
+    ),
 ):
     if not refresh_token:
         raise HTTPException(
@@ -92,16 +106,32 @@ async def refresh(
     )
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    summary="Get current user",
+    description="Return the signed-in user's profile.",
+)
 async def me(user: dict = Depends(get_current_user)):
     return user
 
 
-@router.post("/signout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/signout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Sign out",
+    description="Clear authentication cookies and end the session.",
+)
 async def signout(
     response: Response,
-    access_token: str | None = Cookie(default=None),
-    refresh_token: str | None = Cookie(default=None),
+    access_token: str | None = Cookie(
+        default=None,
+        description="Access token stored in the authentication cookie.",
+    ),
+    refresh_token: str | None = Cookie(
+        default=None,
+        description="Refresh token stored in the authentication cookie.",
+    ),
 ):
     await auth_service.signout(access_token, refresh_token)
     clear_auth_cookies(response)

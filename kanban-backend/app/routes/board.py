@@ -1,5 +1,5 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from fastapi.responses import RedirectResponse
 from app.dependencies.auth import get_current_user, get_current_user_id
 from app.errors.board import BoardNotFoundException
@@ -31,11 +31,24 @@ invitation_service = BoardInvitationService(
 	board_repository, member_repository, invite_repository, user_repository
 )
 
-@router.post("", response_model=BoardResponse, status_code=status.HTTP_201_CREATED, tags=["Kanban Board"])
+@router.post(
+	"",
+	response_model=BoardResponse,
+	status_code=status.HTTP_201_CREATED,
+	tags=["Kanban Board"],
+	summary="Create a board",
+	description="Create a new board owned by the authenticated user.",
+)
 async def create_board(payload: BoardPayload,user_id: UUID = Depends(get_current_user_id)):
 	return await board_service.create_board(user_id, payload.name)
 
-@router.get("", response_model=list[BoardResponse], tags=["Kanban Board"])
+@router.get(
+	"",
+	response_model=list[BoardResponse],
+	tags=["Kanban Board"],
+	summary="List boards",
+	description="Return boards available to the authenticated user.",
+)
 async def get_many_boards(user_id: UUID = Depends(get_current_user_id)):
 	return await board_service.get_many_boards(user_id)
 
@@ -43,9 +56,11 @@ async def get_many_boards(user_id: UUID = Depends(get_current_user_id)):
 	"/{board_id}/members",
 	response_model=list[BoardMemberResponse],
 	tags=["Board Members"],
+	summary="List board members",
+	description="Return members of a board the authenticated user can access.",
 )
 async def get_board_members(
-	board_id: UUID,
+	board_id: UUID = Path(description="Unique identifier of the board."),
 	user_id: UUID = Depends(get_current_user_id),
 ):
 	try:
@@ -60,10 +75,12 @@ async def get_board_members(
 	"/{board_id}/members/{member_id}",
 	status_code=status.HTTP_204_NO_CONTENT,
 	tags=["Board Members"],
+	summary="Remove a board member",
+	description="Remove a member from a board. Only the board owner can perform this action.",
 )
 async def remove_board_member(
-	board_id: UUID,
-	member_id: UUID,
+	board_id: UUID = Path(description="Unique identifier of the board."),
+	member_id: UUID = Path(description="Unique identifier of the member to remove."),
 	owner_id: UUID = Depends(get_current_user_id),
 ):
 	try:
@@ -79,10 +96,12 @@ async def remove_board_member(
 	response_model=BoardInviteResponse,
 	status_code=status.HTTP_201_CREATED,
 	tags=["Board Invitations"],
+	summary="Invite a user",
+	description="Send a board invitation to an email address. Only the board owner can invite users.",
 )
 async def invite_to_board(
-	board_id: UUID,
 	payload: BoardInvitePayload,
+	board_id: UUID = Path(description="Unique identifier of the board."),
 	owner_id: UUID = Depends(get_current_user_id),
 ):
 	try:
@@ -104,6 +123,8 @@ async def invite_to_board(
 	"/invites",
 	response_model=list[PendingBoardInviteResponse],
 	tags=["Board Invitations"],
+	summary="List pending invitations",
+	description="Return pending board invitations for the authenticated user.",
 )
 async def get_pending_invites(user_id: UUID = Depends(get_current_user_id)):
 	return await invitation_service.list_pending_invites(user_id)
@@ -113,9 +134,11 @@ async def get_pending_invites(user_id: UUID = Depends(get_current_user_id)):
 	"/invites/{invite_id}/accept",
 	response_model=BoardInviteActionResponse,
 	tags=["Board Invitations"],
+	summary="Accept an invitation",
+	description="Accept a pending invitation to join a board.",
 )
 async def accept_board_invite(
-	invite_id: UUID,
+	invite_id: UUID = Path(description="Unique identifier of the invitation."),
 	user_id: UUID = Depends(get_current_user_id),
 ):
 	try:
@@ -134,9 +157,11 @@ async def accept_board_invite(
 	"/invites/{invite_id}/reject",
 	response_model=BoardInviteActionResponse,
 	tags=["Board Invitations"],
+	summary="Reject an invitation",
+	description="Reject a pending invitation to join a board.",
 )
 async def reject_board_invite(
-	invite_id: UUID,
+	invite_id: UUID = Path(description="Unique identifier of the invitation."),
 	user_id: UUID = Depends(get_current_user_id),
 ):
 	try:
@@ -148,18 +173,33 @@ async def reject_board_invite(
 			detail=str(error),
 		) from error
 
-@router.get("/{board_id}", response_model=BoardResponse, tags=["Kanban Board"])
+@router.get(
+	"/{board_id}",
+	response_model=BoardResponse,
+	tags=["Kanban Board"],
+	summary="Get a board",
+	description="Return details for a board the authenticated user can access.",
+)
 
-async def get_board(board_id: UUID,user_id: UUID = Depends(get_current_user_id)):
+async def get_board(
+	board_id: UUID = Path(description="Unique identifier of the board."),
+	user_id: UUID = Depends(get_current_user_id),
+):
 	try:
 		return await board_service.get_board(board_id, user_id)
 	except BoardNotFoundException as error:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
-@router.patch("/{board_id}", response_model=BoardResponse, tags=["Kanban Board"])
+@router.patch(
+	"/{board_id}",
+	response_model=BoardResponse,
+	tags=["Kanban Board"],
+	summary="Update a board",
+	description="Update the name of a board owned by the authenticated user.",
+)
 async def update_board(
-	board_id: UUID,
 	payload: BoardPayload,
+	board_id: UUID = Path(description="Unique identifier of the board."),
 	user_id: UUID = Depends(get_current_user_id),
 ):
 	try:
@@ -167,8 +207,17 @@ async def update_board(
 	except BoardNotFoundException as error:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
-@router.delete("/{board_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Kanban Board"])
-async def delete_board(board_id: UUID,user_id: UUID = Depends(get_current_user_id),):
+@router.delete(
+	"/{board_id}",
+	status_code=status.HTTP_204_NO_CONTENT,
+	tags=["Kanban Board"],
+	summary="Delete a board",
+	description="Delete a board owned by the authenticated user.",
+)
+async def delete_board(
+	board_id: UUID = Path(description="Unique identifier of the board."),
+	user_id: UUID = Depends(get_current_user_id),
+):
 	try:
 		await board_service.delete_board(board_id, user_id)
 	except BoardNotFoundException as error:
