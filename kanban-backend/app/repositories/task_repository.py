@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 from psycopg_pool import AsyncConnectionPool
 from psycopg.rows import dict_row
+from app.services.notifications import notification_manager
 
 class TaskRepository:
     def __init__(self, pool: AsyncConnectionPool):
@@ -144,6 +145,7 @@ class TaskRepository:
         assignee_id: UUID,
         assigned_by: UUID,
     ):
+        notification = None
         async with self.pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as curr:
                 async with conn.transaction():
@@ -185,9 +187,11 @@ class TaskRepository:
                             FROM tasks AS t
                             INNER JOIN users AS assigner ON assigner.id = %s
                             WHERE t.id = %s
+                            RETURNING id, task_id, type, message, is_read, created_at
                             """,
                             (assignee_id, assigned_by, task_id),
                         )
+                        notification = await curr.fetchone()
                     await curr.execute(
                         """
                         SELECT u.id, u.name, u.email, ta.assigned_by,
@@ -200,7 +204,21 @@ class TaskRepository:
                         """,
                         (task_id, assignee_id),
                     )
-                    return await curr.fetchone()
+                    assignment = await curr.fetchone()
+
+        if notification:
+            await notification_manager.publish(
+                assignee_id,
+                {
+                    "id": notification["id"],
+                    "taskId": notification["task_id"],
+                    "type": notification["type"],
+                    "message": notification["message"],
+                    "isRead": notification["is_read"],
+                    "createdAt": notification["created_at"],
+                },
+            )
+        return assignment
 
     async def find_task_assignees(
         self, board_id: UUID, column_id: UUID, task_id: UUID

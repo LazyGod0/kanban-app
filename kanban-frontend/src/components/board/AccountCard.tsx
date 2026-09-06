@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Badge,
   Box,
@@ -51,7 +51,84 @@ function AccountCard({ user, onSignOut, isSigningOut }: AccountCardProps) {
     useState<NotificationPage | null>(null);
   const [page, setPage] = useState(1);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+  const pendingNotifications = useRef<Notification[]>([]);
   const notificationOpen = Boolean(notificationAnchor);
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    const apiUrl = new URL(
+      import.meta.env.VITE_API_URL ?? "http://localhost:8000",
+    );
+    apiUrl.protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
+    apiUrl.pathname = "/notifications/ws";
+    apiUrl.search = "";
+
+    let isActive = true;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    let socket: WebSocket | undefined;
+
+    const connect = () => {
+      if (!isActive) {
+        return;
+      }
+
+      socket = new WebSocket(apiUrl.toString());
+      socket.onmessage = (event) => {
+        const notification = JSON.parse(event.data) as Notification;
+        pendingNotifications.current = [
+          notification,
+          ...pendingNotifications.current.filter(
+            (item) => item.id !== notification.id,
+          ),
+        ];
+        setNotificationPage((current) => {
+          if (!current) {
+            return {
+              items: [notification],
+              page: 1,
+              pageSize: 5,
+              total: 1,
+              unreadCount: notification.isRead ? 0 : 1,
+            };
+          }
+
+          const alreadyPresent = current.items.some(
+            (item) => item.id === notification.id,
+          );
+          if (alreadyPresent) {
+            return current;
+          }
+
+          return {
+            ...current,
+            total: current.total + 1,
+            unreadCount: current.unreadCount + (notification.isRead ? 0 : 1),
+            items:
+              current.page === 1
+                ? [notification, ...current.items].slice(0, current.pageSize)
+                : current.items,
+          };
+        });
+      };
+      socket.onclose = () => {
+        if (isActive) {
+          reconnectTimer = setTimeout(connect, 3000);
+        }
+      };
+    };
+
+    connect();
+    return () => {
+      isActive = false;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+      socket?.close();
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     let isMounted = true;
@@ -62,14 +139,31 @@ function AccountCard({ user, onSignOut, isSigningOut }: AccountCardProps) {
           "/notifications?page=1&page_size=1",
         );
         if (isMounted) {
-          setNotificationPage(response.data);
+          setNotificationPage(() => {
+            const receivedWhileLoading = pendingNotifications.current;
+            const responseItems = response.data.items.filter(
+              (item) =>
+                !receivedWhileLoading.some(
+                  (received) => received.id === item.id,
+                ),
+            );
+            const items = [...receivedWhileLoading, ...responseItems];
+
+            return {
+              ...response.data,
+              items: items.slice(0, response.data.pageSize),
+              total: Math.max(response.data.total, items.length),
+              unreadCount: Math.max(
+                response.data.unreadCount,
+                items.filter((item) => !item.isRead).length,
+              ),
+            };
+          });
         }
-      } catch {
-        // Notification availability should not block the account card.
-      }
+      } catch {}
     };
 
-    void loadUnreadCount();
+    loadUnreadCount();
     return () => {
       isMounted = false;
     };
@@ -194,7 +288,11 @@ function AccountCard({ user, onSignOut, isSigningOut }: AccountCardProps) {
         onClose={() => setNotificationAnchor(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
-        slotProps={{ paper: { sx: { width: { xs: 320, sm: 380 }, maxWidth: "calc(100vw - 32px)" } } }}
+        slotProps={{
+          paper: {
+            sx: { width: { xs: 320, sm: 380 }, maxWidth: "calc(100vw - 32px)" },
+          },
+        }}
       >
         <Box sx={{ p: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 800 }}>
@@ -242,7 +340,9 @@ function AccountCard({ user, onSignOut, isSigningOut }: AccountCardProps) {
                         {notification.message}
                       </Typography>
                     }
-                    secondary={new Date(notification.createdAt).toLocaleString()}
+                    secondary={new Date(
+                      notification.createdAt,
+                    ).toLocaleString()}
                   />
                 </ListItemButton>
               </ListItem>
@@ -253,16 +353,19 @@ function AccountCard({ user, onSignOut, isSigningOut }: AccountCardProps) {
             You have no notifications.
           </Typography>
         )}
-        {notificationPage && notificationPage.total > notificationPage.pageSize && (
-          <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-            <Pagination
-              page={page}
-              count={Math.ceil(notificationPage.total / notificationPage.pageSize)}
-              onChange={(_, nextPage) => void loadNotifications(nextPage)}
-              size="small"
-            />
-          </Box>
-        )}
+        {notificationPage &&
+          notificationPage.total > notificationPage.pageSize && (
+            <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+              <Pagination
+                page={page}
+                count={Math.ceil(
+                  notificationPage.total / notificationPage.pageSize,
+                )}
+                onChange={(_, nextPage) => void loadNotifications(nextPage)}
+                size="small"
+              />
+            </Box>
+          )}
       </Popover>
     </Card>
   );

@@ -1,14 +1,49 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Cookie,
+    Depends,
+    HTTPException,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 
 from app.dependencies.auth import get_current_user_id
 from app.lib.db import pool
 from app.models.notification import NotificationPageResponse
 from app.repositories.notification_repository import NotificationRepository
+from app.errors.auth import UnauthorizedException
+from app.services.auth.jwt_token import token_service
+from app.services.notifications import notification_manager
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 notification_repository = NotificationRepository(pool)
+
+
+@router.websocket("/ws")
+async def notification_websocket(
+    websocket: WebSocket,
+    access_token: str | None = Cookie(default=None),
+):
+    if not access_token:
+        await websocket.close(code=1008, reason="Authentication required")
+        return
+
+    try:
+        user_id = UUID(await token_service.verify_access_token(access_token))
+    except (UnauthorizedException, ValueError):
+        await websocket.close(code=1008, reason="Invalid access token")
+        return
+
+    await notification_manager.connect(user_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        await notification_manager.disconnect(user_id, websocket)
 
 
 @router.get("", response_model=NotificationPageResponse)

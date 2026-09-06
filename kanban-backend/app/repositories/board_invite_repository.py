@@ -2,6 +2,7 @@ from uuid import UUID
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 from app.repositories.board_member_repository import BoardMemberRepository
+from app.services.notifications import notification_manager
 
 class BoardInviteRepository:
     def __init__(self, pool: AsyncConnectionPool):
@@ -12,6 +13,7 @@ class BoardInviteRepository:
         self, board_id: UUID, invited_user_id: UUID, invited_email: str,
         created_by: UUID, expires_at,
     ):
+        notification = None
         async with self.pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as curr:
                 async with conn.transaction():
@@ -29,10 +31,25 @@ class BoardInviteRepository:
                         """
                         INSERT INTO notifications (user_id, board_invite_id, type, message)
                         VALUES (%s, %s, 'board_invite', %s)
+                        RETURNING id, board_invite_id, type, message, is_read, created_at
                         """,
                         (invited_user_id, invite["id"], "You have a new board invitation"),
                     )
-                    return invite
+                    notification = await curr.fetchone()
+
+        if notification:
+            await notification_manager.publish(
+                invited_user_id,
+                {
+                    "id": notification["id"],
+                    "boardInviteId": notification["board_invite_id"],
+                    "type": notification["type"],
+                    "message": notification["message"],
+                    "isRead": notification["is_read"],
+                    "createdAt": notification["created_at"],
+                },
+            )
+        return invite
 
     async def has_pending_invite(self, board_id: UUID, user_id: UUID) -> bool:
         async with self.pool.connection() as conn:
