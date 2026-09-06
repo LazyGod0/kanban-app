@@ -45,6 +45,7 @@ SCHEMA_STATEMENTS: list[str] = [
         revoked     BOOLEAN NOT NULL DEFAULT FALSE
     );
     CREATE INDEX IF NOT EXISTS idx_tokens_user_id ON tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_tokens_token_hash ON tokens(token_hash);
     """,
  
     """
@@ -65,6 +66,8 @@ SCHEMA_STATEMENTS: list[str] = [
         joined_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (board_id, user_id)
     );
+    CREATE INDEX IF NOT EXISTS idx_board_members_user_id
+        ON board_members(user_id);
     """,
  
     """
@@ -83,6 +86,8 @@ SCHEMA_STATEMENTS: list[str] = [
     CREATE INDEX IF NOT EXISTS idx_board_invites_board_id ON board_invites(board_id);
     CREATE INDEX IF NOT EXISTS idx_board_invites_invited_user_id
         ON board_invites(invited_user_id);
+    CREATE INDEX IF NOT EXISTS idx_board_invites_user_status_created_at
+        ON board_invites(invited_user_id, status, expires_at, created_at DESC);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_board_invites_pending_recipient
         ON board_invites(board_id, invited_user_id)
         WHERE status = 'pending';
@@ -97,7 +102,6 @@ SCHEMA_STATEMENTS: list[str] = [
         created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
-    CREATE INDEX IF NOT EXISTS idx_columns_board_id ON columns(board_id);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_columns_board_position
         ON columns(board_id, position);
     """,
@@ -114,6 +118,8 @@ SCHEMA_STATEMENTS: list[str] = [
         updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+    CREATE INDEX IF NOT EXISTS idx_tasks_column_created_at
+        ON tasks(column_id, created_at ASC);
     """,
  
     """
@@ -124,6 +130,8 @@ SCHEMA_STATEMENTS: list[str] = [
         assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (task_id, user_id)
     );
+    CREATE INDEX IF NOT EXISTS idx_task_assignees_user_id
+        ON task_assignees(user_id);
     """,
  
     """
@@ -134,7 +142,10 @@ SCHEMA_STATEMENTS: list[str] = [
         color       TEXT,
         created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
-    CREATE INDEX IF NOT EXISTS idx_tags_board_id ON tags(board_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_board_name
+        ON tags(board_id, name);
+    CREATE INDEX IF NOT EXISTS idx_tags_board_name_sort
+        ON tags(board_id, lower(name), id);
     """,
  
     """
@@ -143,6 +154,8 @@ SCHEMA_STATEMENTS: list[str] = [
         tag_id      UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
         PRIMARY KEY (task_id, tag_id)
     );
+    CREATE INDEX IF NOT EXISTS idx_task_tags_tag_id
+        ON task_tags(tag_id);
     """,
  
     """
@@ -158,7 +171,10 @@ SCHEMA_STATEMENTS: list[str] = [
     );
     CREATE INDEX IF NOT EXISTS idx_notifications_user_created_at
         ON notifications(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_notifications_invite_user
+        ON notifications(board_invite_id, user_id);
     """,
+
 ]
 
 async def generate_schema() -> None:
