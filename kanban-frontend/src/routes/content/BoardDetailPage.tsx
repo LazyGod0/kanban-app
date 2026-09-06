@@ -25,12 +25,15 @@ import TaskDetailDialog from "../../components/board/TaskDetailDialog";
 import type { Board } from "../../interfaces/Board";
 import type { Column } from "../../interfaces/Column";
 import type { Task } from "../../interfaces/Task";
+import type { Tag } from "../../interfaces/Tag";
 
 export default function BoardDetailPage() {
   const { user } = useAuth();
   const { boardId } = useParams<{ boardId: string }>();
   const [board, setBoard] = useState<Board | null>(null);
   const [columns, setColumns] = useState<Column[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [isLoadingTags, setIsLoadingTags] = useState(false);
   const [tasksByColumn, setTasksByColumn] = useState<Record<string, Task[]>>(
     {},
   );
@@ -75,6 +78,58 @@ export default function BoardDetailPage() {
 
     fetchBoard();
   }, [boardId]);
+
+  useEffect(() => {
+    if (!boardId) return;
+
+    const fetchTags = async () => {
+      setIsLoadingTags(true);
+      try {
+        const response = await api.get<Tag[]>(`/board/${boardId}/tags`);
+        setTags(response.data);
+      } catch (requestError) {
+        const responseError = requestError as AxiosError<{ detail?: string }>;
+        setError(
+          responseError.response?.data?.detail ?? "Unable to load tags.",
+        );
+      } finally {
+        setIsLoadingTags(false);
+      }
+    };
+
+    void fetchTags();
+  }, [boardId]);
+
+  const handleCreateTag = async (name: string) => {
+    if (!boardId) return null;
+    try {
+      const response = await api.post<Tag>(`/board/${boardId}/tags`, { name });
+      setTags((current) => [...current, response.data]);
+      return response.data;
+    } catch (requestError) {
+      const responseError = requestError as AxiosError<{ detail?: string }>;
+      throw new Error(
+        responseError.response?.data?.detail ?? "Unable to create tag.",
+        { cause: requestError },
+      );
+    }
+  };
+
+  const handleDeleteTag = async (tag: Tag) => {
+    if (!boardId) return;
+    try {
+      await api.delete(`/board/${boardId}/tags/${tag.id}`);
+      setTags((current) =>
+        current.filter((currentTag) => currentTag.id !== tag.id),
+      );
+    } catch (requestError) {
+      const responseError = requestError as AxiosError<{ detail?: string }>;
+      throw new Error(
+        responseError.response?.data?.detail ?? "Unable to delete tag.",
+        { cause: requestError },
+      );
+    }
+  };
 
   const fetchColumns = useCallback(async () => {
     if (!boardId) return;
@@ -330,6 +385,10 @@ export default function BoardDetailPage() {
                       onUpdated={handleColumnUpdated}
                       onDeleted={handleColumnDeleted}
                       onTaskCreated={handleTaskCreated}
+                      tags={tags}
+                      isLoadingTags={isLoadingTags}
+                      onCreateTag={handleCreateTag}
+                      onDeleteTag={handleDeleteTag}
                     />
                   )}
                 </Box>
@@ -416,6 +475,10 @@ export default function BoardDetailPage() {
           onClose={() => setSelectedTask(null)}
           onUpdated={handleTaskUpdated}
           onDeleted={handleTaskDeleted}
+          tags={tags}
+          isLoadingTags={isLoadingTags}
+          onCreateTag={handleCreateTag}
+          onDeleteTag={handleDeleteTag}
         />
       )}
     </Box>

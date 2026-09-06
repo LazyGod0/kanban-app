@@ -7,6 +7,7 @@ import AddTaskIcon from "@mui/icons-material/PlaylistAdd";
 import api from "../../lib/api";
 import type { Column } from "../../interfaces/Column";
 import type { Task } from "../../interfaces/Task";
+import type { Tag } from "../../interfaces/Tag";
 import DeletePopUp from "../common/DeletePopUp";
 import EditColumnDialog from "./EditColumnDialog";
 import TaskDialog from "./TaskDialog";
@@ -19,6 +20,10 @@ type ColumnActionsProps = {
   onUpdated: (column: Column) => void;
   onDeleted: (columnId: string) => void;
   onTaskCreated: (task: Task) => void;
+  tags: Tag[];
+  isLoadingTags: boolean;
+  onCreateTag: (name: string) => Promise<Tag | null>;
+  onDeleteTag: (tag: Tag) => Promise<void>;
 };
 
 type ApiError = {
@@ -33,6 +38,10 @@ function ColumnActions({
   onUpdated,
   onDeleted,
   onTaskCreated,
+  tags,
+  isLoadingTags,
+  onCreateTag,
+  onDeleteTag,
 }: ColumnActionsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -139,6 +148,10 @@ function ColumnActions({
         columnName={column.name}
         onClose={() => setIsTaskDialogOpen(false)}
         onCreated={onTaskCreated}
+        tags={tags}
+        isLoadingTags={isLoadingTags}
+        onCreateTag={onCreateTag}
+        onDeleteTag={onDeleteTag}
       />
       <EditColumnDialog
         open={isEditing}

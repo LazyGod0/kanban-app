@@ -1,4 +1,4 @@
-import { Box, Paper, Typography } from "@mui/material";
+import { Box, Chip, Paper, Typography } from "@mui/material";
 import type { DragEvent } from "react";
 import type { Task } from "../../interfaces/Task";
 import { formatLocalDate } from "../../lib/date";
@@ -70,6 +70,18 @@ export default function TaskCard({
           {task.description}
         </Typography>
       )}
+      {task.tags?.length ? (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 1 }}>
+          {task.tags.map((tag) => (
+            <Chip
+              key={tag.id}
+              label={tag.name}
+              size="small"
+              sx={tag.color ? { bgcolor: tag.color } : undefined}
+            />
+          ))}
+        </Box>
+      ) : null}
     </Paper>
   );
 }

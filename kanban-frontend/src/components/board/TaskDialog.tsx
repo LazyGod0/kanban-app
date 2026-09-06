@@ -17,7 +17,9 @@ import CloseIcon from "@mui/icons-material/Close";
 import api from "../../lib/api";
 import type { BoardMember } from "../../interfaces/Board";
 import type { Task } from "../../interfaces/Task";
+import type { Tag } from "../../interfaces/Tag";
 import DatePickerComponent from "../common/DatePicker";
+import TagSelector from "./TagSelector";
 import dayjs from "dayjs";
 import type { Dayjs } from "dayjs";
 
@@ -28,6 +30,10 @@ type TaskDialogProps = {
   columnName: string;
   onClose: () => void;
   onCreated?: (task: Task) => void;
+  tags: Tag[];
+  isLoadingTags: boolean;
+  onCreateTag: (name: string) => Promise<Tag | null>;
+  onDeleteTag: (tag: Tag) => Promise<void>;
 };
 
 type ApiError = { detail?: string };
@@ -39,11 +45,16 @@ export default function TaskDialog({
   columnName,
   onClose,
   onCreated,
+  tags,
+  isLoadingTags,
+  onCreateTag,
+  onDeleteTag,
 }: TaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [duedate, setDuedate] = useState<Dayjs | null>(dayjs());
   const [selectedMembers, setSelectedMembers] = useState<BoardMember[]>([]);
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [members, setMembers] = useState<BoardMember[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,6 +89,7 @@ export default function TaskDialog({
     setTitle("");
     setDescription("");
     setSelectedMembers([]);
+    setSelectedTags([]);
     setError("");
   };
 
@@ -100,6 +112,7 @@ export default function TaskDialog({
           title: title.trim(),
           description: description.trim() || null,
           dueDate: duedate?.toISOString() ?? null,
+          tagIds: selectedTags.map((tag) => tag.id),
         },
       );
 
@@ -181,6 +194,15 @@ export default function TaskDialog({
                   }
                 />
               )}
+            />
+            <TagSelector
+              options={tags}
+              value={selectedTags}
+              loading={isLoadingTags}
+              disabled={isSubmitting}
+              onChange={setSelectedTags}
+              onCreate={onCreateTag}
+              onDelete={onDeleteTag}
             />
             {isLoadingMembers && <CircularProgress size={22} />}
           </Stack>

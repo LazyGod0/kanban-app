@@ -21,7 +21,9 @@ import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import type { BoardMember } from "../../interfaces/Board";
 import type { Task } from "../../interfaces/Task";
+import type { Tag } from "../../interfaces/Tag";
 import DatePickerComponent from "../common/DatePicker";
+import TagSelector from "./TagSelector";
 
 type TaskDetailDialogProps = {
   open: boolean;
@@ -31,6 +33,10 @@ type TaskDetailDialogProps = {
   onClose: () => void;
   onUpdated: (task: Task) => void;
   onDeleted: (taskId: string) => void;
+  tags: Tag[];
+  isLoadingTags: boolean;
+  onCreateTag: (name: string) => Promise<Tag | null>;
+  onDeleteTag: (tag: Tag) => Promise<void>;
 };
 
 type ApiError = { detail?: string };
@@ -49,6 +55,10 @@ export default function TaskDetailDialog({
   onClose,
   onUpdated,
   onDeleted,
+  tags,
+  isLoadingTags,
+  onCreateTag,
+  onDeleteTag,
 }: TaskDetailDialogProps) {
   const { user } = useAuth();
   const canDelete = user?.id === task.createdBy;
@@ -60,6 +70,7 @@ export default function TaskDetailDialog({
   );
   const [members, setMembers] = useState<Assignee[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<Assignee[]>([]);
+  const [selectedTags, setSelectedTags] = useState<Tag[]>(task.tags ?? []);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -71,6 +82,7 @@ export default function TaskDetailDialog({
     setTitle(task.title);
     setDescription(task.description ?? "");
     setDueDate(task.dueDate ? dayjs(task.dueDate) : null);
+    setSelectedTags(task.tags ?? []);
 
     const loadDetails = async () => {
       setIsLoading(true);
@@ -111,6 +123,7 @@ export default function TaskDetailDialog({
           title: title.trim(),
           description: description.trim() || null,
           dueDate: dueDate?.toISOString() ?? null,
+          tagIds: selectedTags.map((tag) => tag.id),
         },
       );
 
@@ -243,6 +256,16 @@ export default function TaskDetailDialog({
                   renderInput={(params) => (
                     <TextField {...params} label="Assignees" />
                   )}
+                />
+                <TagSelector
+                  options={tags}
+                  value={selectedTags}
+                  loading={isLoadingTags}
+                  disabled={isSubmitting}
+                  onChange={setSelectedTags}
+                  onCreate={onCreateTag}
+                  onDelete={onDeleteTag}
+                  readOnly={!canEdit || isLoading || isSubmitting}
                 />
                 <Typography variant="caption" color="text.secondary">
                   Assigned by:{" "}

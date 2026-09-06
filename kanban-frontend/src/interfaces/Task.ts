@@ -8,4 +8,5 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   assigneeIds?: string[];
+  tags: import("./Tag").Tag[];
 }
