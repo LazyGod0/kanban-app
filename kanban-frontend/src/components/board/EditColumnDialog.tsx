@@ -33,6 +33,9 @@ function EditColumnDialog({
   onClose,
   onSubmit,
 }: EditColumnDialogProps) {
+  const displayPosition = position + 1;
+  const displayMaxPosition = maxPosition + 1;
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <Stack component="form" onSubmit={onSubmit}>
@@ -50,12 +53,14 @@ function EditColumnDialog({
           <TextField
             label="Position"
             type="number"
-            value={position}
-            onChange={(event) => onPositionChange(Number(event.target.value))}
+            value={displayPosition}
+            onChange={(event) =>
+              onPositionChange(Number(event.target.value) - 1)
+            }
             slotProps={{
-              htmlInput: { min: 0, max: maxPosition, step: 1 },
+              htmlInput: { min: 1, max: displayMaxPosition, step: 1 },
             }}
-            helperText={`Choose a position from 0 to ${maxPosition}. Other columns will move automatically.`}
+            helperText={`Choose a position from 1 to ${displayMaxPosition}. Other columns will move automatically.`}
             required
             fullWidth
             sx={{ mt: 2 }}
