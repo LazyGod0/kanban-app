@@ -11,10 +11,13 @@ from app.models.task import (
 )
 from app.repositories.col_repository import ColumnRepository
 from app.repositories.task_repository import TaskRepository
+from app.repositories.tag_repository import TagRepository
 from app.services.task.task import TaskService
 
 router = APIRouter(prefix="/tasks")
-task_service = TaskService(TaskRepository(pool), ColumnRepository(pool))
+task_service = TaskService(
+    TaskRepository(pool), ColumnRepository(pool), TagRepository(pool)
+)
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED, tags=["Column Tasks"])
 async def create_task(

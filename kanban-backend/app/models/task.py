@@ -6,6 +6,7 @@ class TaskPayload(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str | None = None
     due_date: datetime | None = None
+    tag_ids: list[UUID] = Field(default_factory=list)
     model_config = ConfigDict(
         alias_generator=to_camel,
         validate_by_alias=True,
@@ -16,6 +17,7 @@ class TaskUpdatePayload(BaseModel):
     description: str | None = None
     due_date: datetime | None = None
     column_id: UUID | None = None
+    tag_ids: list[UUID] | None = None
     model_config = ConfigDict(
         alias_generator=to_camel,
         validate_by_alias=True,
@@ -30,6 +32,7 @@ class TaskResponse(BaseModel):
     created_by: UUID
     created_at: datetime
     updated_at: datetime
+    tags: list[dict] = []
 
     model_config = ConfigDict(
         alias_generator=to_camel,

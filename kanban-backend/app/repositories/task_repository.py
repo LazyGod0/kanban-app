@@ -16,6 +16,7 @@ class TaskRepository:
         description: str | None,
         due_date: datetime | None,
         created_by: UUID,
+        tag_ids: list[UUID] | None = None,
     ):
         async with self.pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as curr:
@@ -41,7 +42,15 @@ class TaskRepository:
                             board_id,
                         ),
                     )
-                    return await curr.fetchone()
+                    task = await curr.fetchone()
+                    if not task:
+                        return None
+                    if tag_ids:
+                        await curr.executemany(
+                            "INSERT INTO task_tags (task_id, tag_id) VALUES (%s, %s)",
+                            [(task["id"], tag_id) for tag_id in tag_ids],
+                        )
+                    return task
 
     async def find_many_tasks(
         self, board_id: UUID, column_id: UUID
@@ -88,8 +97,10 @@ class TaskRepository:
         column_id: UUID,
         task_id: UUID,
         values: dict,
+        tag_ids: list[UUID] | None = None,
     ):
-        if not values:
+        values = {field: value for field, value in values.items() if field != "tag_ids"}
+        if not values and tag_ids is None:
             return await self.find_task(board_id, column_id, task_id)
 
         assignments = []
@@ -102,20 +113,45 @@ class TaskRepository:
         async with self.pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as curr:
                 async with conn.transaction():
-                    await curr.execute(
-                        f"""
-                        UPDATE tasks AS t
-                        SET {", ".join(assignments)}, updated_at = now()
-                        FROM columns AS c
-                        WHERE t.id = %s
-                          AND t.column_id = c.id
-                          AND c.id = %s
-                          AND c.board_id = %s
-                        RETURNING t.*
-                        """,
-                        parameters,
-                    )
-                    return await curr.fetchone()
+                    if assignments:
+                        await curr.execute(
+                            f"""
+                            UPDATE tasks AS t
+                            SET {", ".join(assignments)}, updated_at = now()
+                            FROM columns AS c
+                            WHERE t.id = %s
+                              AND t.column_id = c.id
+                              AND c.id = %s
+                              AND c.board_id = %s
+                            RETURNING t.*
+                            """,
+                            parameters,
+                        )
+                        task = await curr.fetchone()
+                    else:
+                        await curr.execute(
+                            """
+                            SELECT t.id
+                            FROM tasks AS t
+                            INNER JOIN columns AS c ON c.id = t.column_id
+                            WHERE t.id = %s AND c.id = %s AND c.board_id = %s
+                            """,
+                            (task_id, column_id, board_id),
+                        )
+                        task = await curr.fetchone()
+                    if not task:
+                        return None
+                    if tag_ids is not None:
+                        await curr.execute(
+                            "DELETE FROM task_tags WHERE task_id = %s",
+                            (task_id,),
+                        )
+                        if tag_ids:
+                            await curr.executemany(
+                                "INSERT INTO task_tags (task_id, tag_id) VALUES (%s, %s)",
+                                [(task_id, tag_id) for tag_id in tag_ids],
+                            )
+                    return task
 
     async def delete_task(
         self, board_id: UUID, column_id: UUID, task_id: UUID, user_id: UUID

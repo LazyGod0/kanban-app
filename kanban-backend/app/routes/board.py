@@ -17,6 +17,7 @@ from app.repositories.board_member_repository import BoardMemberRepository
 from app.repositories.board_invite_repository import BoardInviteRepository
 from app.repositories.user_repository import UserRepository
 from app.routes.column import router as column_router
+from app.routes.tag import router as tag_router
 from app.services.board.board import BoardService
 from app.services.board.invitation import BoardInvitationService
 
@@ -174,3 +175,4 @@ async def delete_board(board_id: UUID,user_id: UUID = Depends(get_current_user_i
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
 router.include_router(column_router, prefix="/{board_id}")
+router.include_router(tag_router, prefix="/{board_id}")
