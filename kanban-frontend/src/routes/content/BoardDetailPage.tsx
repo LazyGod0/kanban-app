@@ -9,12 +9,15 @@ import {
   Grid,
   IconButton,
   Link,
+  Badge,
+  Popover,
   Stack,
   Tooltip,
   Typography,
 } from "@mui/material";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import { Link as RouterLink, useParams } from "react-router-dom";
 import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
@@ -28,6 +31,12 @@ import type { Board } from "../../interfaces/Board";
 import type { Column } from "../../interfaces/Column";
 import type { Task } from "../../interfaces/Task";
 import type { Tag } from "../../interfaces/Tag";
+import {
+  EMPTY_TASK_FILTER,
+  filterAndSortTasks,
+  type TaskFilterState,
+} from "../../lib/taskFilters";
+import TaskFilterControls from "../../components/board/TaskFilterControls";
 
 export default function BoardDetailPage() {
   const { user } = useAuth();
@@ -49,13 +58,39 @@ export default function BoardDetailPage() {
     columnId: string;
   } | null>(null);
   const [expandedColumnId, setExpandedColumnId] = useState<string | null>(null);
+  const [filtersByColumn, setFiltersByColumn] = useState<
+    Record<string, TaskFilterState>
+  >({});
+  const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
+  const [filterColumnId, setFilterColumnId] = useState<string | null>(null);
 
   const expandedColumn = columns.find(
     (column) => column.id === expandedColumnId,
   );
+  const expandedFilter = expandedColumn
+    ? (filtersByColumn[expandedColumn.id] ?? EMPTY_TASK_FILTER)
+    : EMPTY_TASK_FILTER;
   const expandedTasks = expandedColumn
-    ? (tasksByColumn[expandedColumn.id] ?? [])
+    ? filterAndSortTasks(tasksByColumn[expandedColumn.id] ?? [], expandedFilter)
     : [];
+
+  const updateColumnFilter = (columnId: string, filter: TaskFilterState) => {
+    setFiltersByColumn((current) => ({ ...current, [columnId]: filter }));
+  };
+
+  const openFilter = (
+    event: React.MouseEvent<HTMLElement>,
+    columnId: string,
+  ) => {
+    event.stopPropagation();
+    setFilterAnchor(event.currentTarget);
+    setFilterColumnId(columnId);
+  };
+
+  const closeFilter = () => {
+    setFilterAnchor(null);
+    setFilterColumnId(null);
+  };
 
   useEffect(() => {
     if (!boardId) return;
@@ -123,6 +158,17 @@ export default function BoardDetailPage() {
       await api.delete(`/board/${boardId}/tags/${tag.id}`);
       setTags((current) =>
         current.filter((currentTag) => currentTag.id !== tag.id),
+      );
+      setFiltersByColumn((current) =>
+        Object.fromEntries(
+          Object.entries(current).map(([columnId, filter]) => [
+            columnId,
+            {
+              ...filter,
+              tagIds: filter.tagIds.filter((tagId) => tagId !== tag.id),
+            },
+          ]),
+        ),
       );
     } catch (requestError) {
       const responseError = requestError as AxiosError<{ detail?: string }>;
@@ -356,98 +402,166 @@ export default function BoardDetailPage() {
             wrap="nowrap"
             sx={{ minWidth: `${columns.length * 220}px` }}
           >
-            {columns.map((column) => (
-              <Grid
-                key={column.id}
-                size={1}
-                sx={{
-                  position: "relative",
-                  minWidth: 220,
-                  p: 2,
-                  minHeight: 180,
-                  borderRadius: 2,
-                  bgcolor: "white",
-                  boxShadow: "sm",
-                  "&:hover .column-actions, &:focus-within .column-actions": {
-                    opacity: 1,
-                  },
-                }}
-                onDragOver={handleColumnDragOver}
-                onDrop={(event) => handleColumnDrop(event, column.id)}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    justifyContent: "space-between",
-                    gap: 1,
-                  }}
-                >
-                  <Typography sx={{ fontWeight: 700 }}>
-                    {column.name}
-                  </Typography>
-                  {board && (
-                    <ColumnActions
-                      boardId={boardId ?? ""}
-                      column={column}
-                      maxPosition={columns.length - 1}
-                      canManage={board.isOwner}
-                      onUpdated={handleColumnUpdated}
-                      onDeleted={handleColumnDeleted}
-                      onTaskCreated={handleTaskCreated}
-                      tags={tags}
-                      isLoadingTags={isLoadingTags}
-                      onCreateTag={handleCreateTag}
-                      onDeleteTag={handleDeleteTag}
-                    />
-                  )}
-                </Box>
-                <Box sx={{ mt: 3, minHeight: 110, pb: 5 }}>
-                  {(tasksByColumn[column.id] ?? []).length === 0 ? (
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ textAlign: "center" }}
-                    >
-                      No tasks have been added to this column.
-                    </Typography>
-                  ) : (
-                    <Stack spacing={1}>
-                      {(tasksByColumn[column.id] ?? [])
-                        .slice(0, 5)
-                        .map((task) => (
-                          <TaskCard
-                            key={task.id}
-                            task={task}
-                            onDragStart={handleTaskDragStart}
-                            canDrag={task.assigneeIds?.includes(user?.id ?? "")}
-                            onClick={(selected) =>
-                              setSelectedTask({
-                                task: selected,
-                                columnId: column.id,
-                              })
-                            }
-                          />
-                        ))}
-                    </Stack>
-                  )}
-                </Box>
-                <Tooltip title="View all tasks">
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    aria-label={`Expand ${column.name}`}
-                    onClick={() => setExpandedColumnId(column.id)}
-                    sx={{ position: "absolute", right: 8, bottom: 8 }}
+            {columns.map((column) =>
+              (() => {
+                const columnFilter =
+                  filtersByColumn[column.id] ?? EMPTY_TASK_FILTER;
+                const columnTasks = filterAndSortTasks(
+                  tasksByColumn[column.id] ?? [],
+                  columnFilter,
+                );
+                const hasActiveFilter =
+                  Boolean(columnFilter.title.trim()) ||
+                  columnFilter.tagIds.length > 0 ||
+                  columnFilter.dueDateSort !== "none";
+
+                return (
+                  <Grid
+                    key={column.id}
+                    size={1}
+                    sx={{
+                      position: "relative",
+                      minWidth: 220,
+                      p: 2,
+                      minHeight: 180,
+                      borderRadius: 2,
+                      bgcolor: "white",
+                      boxShadow: "sm",
+                    }}
+                    onDragOver={handleColumnDragOver}
+                    onDrop={(event) => handleColumnDrop(event, column.id)}
                   >
-                    <OpenInFullIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Grid>
-            ))}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "space-between",
+                        gap: 1,
+                      }}
+                    >
+                      <Typography sx={{ fontWeight: 700 }}>
+                        {column.name}
+                      </Typography>
+                      <Box
+                        className="column-actions"
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 0.5,
+                          opacity: 0,
+                          transition: "opacity 160ms ease",
+                          flexShrink: 0,
+                          "&:hover": { opacity: 1 },
+                        }}
+                      >
+                        <Tooltip title="Filter tasks">
+                          <IconButton
+                            size="small"
+                            color={hasActiveFilter ? "primary" : "default"}
+                            aria-label={`Filter tasks in ${column.name}`}
+                            onClick={(event) => openFilter(event, column.id)}
+                          >
+                            <Badge
+                              color="primary"
+                              variant="dot"
+                              invisible={!hasActiveFilter}
+                            >
+                              <FilterListIcon fontSize="small" />
+                            </Badge>
+                          </IconButton>
+                        </Tooltip>
+                        {board && (
+                          <ColumnActions
+                            boardId={boardId ?? ""}
+                            column={column}
+                            maxPosition={columns.length - 1}
+                            canManage={board.isOwner}
+                            onUpdated={handleColumnUpdated}
+                            onDeleted={handleColumnDeleted}
+                            onTaskCreated={handleTaskCreated}
+                            tags={tags}
+                            isLoadingTags={isLoadingTags}
+                            onCreateTag={handleCreateTag}
+                            onDeleteTag={handleDeleteTag}
+                          />
+                        )}
+                      </Box>
+                    </Box>
+                    <Box sx={{ mt: 3, minHeight: 110, pb: 5 }}>
+                      {columnTasks.length === 0 ? (
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ textAlign: "center" }}
+                        >
+                          {(tasksByColumn[column.id] ?? []).length === 0
+                            ? "No tasks have been added to this column."
+                            : "No tasks match the current filters."}
+                        </Typography>
+                      ) : (
+                        <Stack spacing={1}>
+                          {columnTasks.slice(0, 5).map((task) => (
+                            <TaskCard
+                              key={task.id}
+                              task={task}
+                              onDragStart={handleTaskDragStart}
+                              canDrag={task.assigneeIds?.includes(
+                                user?.id ?? "",
+                              )}
+                              onClick={(selected) =>
+                                setSelectedTask({
+                                  task: selected,
+                                  columnId: column.id,
+                                })
+                              }
+                            />
+                          ))}
+                        </Stack>
+                      )}
+                    </Box>
+                    <Tooltip title="View all tasks">
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        aria-label={`Expand ${column.name}`}
+                        onClick={() => setExpandedColumnId(column.id)}
+                        sx={{ position: "absolute", right: 8, bottom: 8 }}
+                      >
+                        <OpenInFullIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Grid>
+                );
+              })(),
+            )}
           </Grid>
         </Box>
       )}
+
+      <Popover
+        open={Boolean(filterAnchor)}
+        anchorEl={filterAnchor}
+        onClose={closeFilter}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{
+          paper: {
+            sx: {
+              p: 2,
+              width: { xs: "calc(100vw - 32px)", sm: 520 },
+              maxWidth: "calc(100vw - 32px)",
+            },
+          },
+        }}
+      >
+        {filterColumnId && (
+          <TaskFilterControls
+            filter={filtersByColumn[filterColumnId] ?? EMPTY_TASK_FILTER}
+            tags={tags}
+            onChange={(filter) => updateColumnFilter(filterColumnId, filter)}
+          />
+        )}
+      </Popover>
 
       <AddColumnDialog
         open={isAddColumnOpen}
@@ -462,7 +576,15 @@ export default function BoardDetailPage() {
         open={Boolean(expandedColumn)}
         columnName={expandedColumn?.name}
         tasks={expandedTasks}
+        totalTaskCount={
+          expandedColumn ? (tasksByColumn[expandedColumn.id] ?? []).length : 0
+        }
+        filter={expandedFilter}
+        tags={tags}
         onClose={() => setExpandedColumnId(null)}
+        onFilterChange={(filter) => {
+          if (expandedColumn) updateColumnFilter(expandedColumn.id, filter);
+        }}
         canDragTask={(task) =>
           task.assigneeIds?.includes(user?.id ?? "") ?? false
         }

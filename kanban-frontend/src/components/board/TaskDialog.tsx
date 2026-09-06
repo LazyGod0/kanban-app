@@ -20,7 +20,6 @@ import type { Task } from "../../interfaces/Task";
 import type { Tag } from "../../interfaces/Tag";
 import DatePickerComponent from "../common/DatePicker";
 import TagSelector from "./TagSelector";
-import dayjs from "dayjs";
 import type { Dayjs } from "dayjs";
 
 type TaskDialogProps = {
@@ -52,7 +51,7 @@ export default function TaskDialog({
 }: TaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [duedate, setDuedate] = useState<Dayjs | null>(dayjs());
+  const [duedate, setDuedate] = useState<Dayjs | null>(null);
   const [selectedMembers, setSelectedMembers] = useState<BoardMember[]>([]);
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [members, setMembers] = useState<BoardMember[]>([]);
@@ -88,6 +87,7 @@ export default function TaskDialog({
   const reset = () => {
     setTitle("");
     setDescription("");
+    setDuedate(null);
     setSelectedMembers([]);
     setSelectedTags([]);
     setError("");

@@ -6,13 +6,20 @@ import {
   Typography,
 } from "@mui/material";
 import type { Task } from "../../interfaces/Task";
+import type { Tag } from "../../interfaces/Tag";
+import type { TaskFilterState } from "../../lib/taskFilters";
+import TaskFilterControls from "./TaskFilterControls";
 import TaskCard from "./TaskCard";
 
 type ExpandedTasksDialogProps = {
   open: boolean;
   columnName?: string;
   tasks: Task[];
+  totalTaskCount: number;
+  filter: TaskFilterState;
+  tags: Tag[];
   onClose: () => void;
+  onFilterChange: (filter: TaskFilterState) => void;
   canDragTask: (task: Task) => boolean;
   onTaskDragStart: (event: React.DragEvent<HTMLDivElement>, task: Task) => void;
   onTaskDragEnd: () => void;
@@ -23,7 +30,11 @@ export default function ExpandedTasksDialog({
   open,
   columnName,
   tasks,
+  totalTaskCount,
+  filter,
+  tags,
   onClose,
+  onFilterChange,
   canDragTask,
   onTaskDragStart,
   onTaskDragEnd,
@@ -50,9 +61,18 @@ export default function ExpandedTasksDialog({
           overflowY: "auto",
         }}
       >
+        <Box sx={{ mb: 2 }}>
+          <TaskFilterControls
+            filter={filter}
+            tags={tags}
+            onChange={onFilterChange}
+          />
+        </Box>
         {tasks.length === 0 ? (
           <Typography color="text.secondary" sx={{ py: 2 }}>
-            No tasks have been added to this column.
+            {totalTaskCount === 0
+              ? "No tasks have been added to this column."
+              : "No tasks match the current filters."}
           </Typography>
         ) : (
           <Box

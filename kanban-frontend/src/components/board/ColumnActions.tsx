@@ -91,14 +91,10 @@ function ColumnActions({
   return (
     <>
       <Stack
-        className="column-actions"
         direction="row"
         spacing={0.5}
         sx={{
-          opacity: 0,
-          transition: "opacity 160ms ease",
           flexShrink: 0,
-          "&:focus-within": { opacity: 1 },
         }}
       >
         <Tooltip title="Add task">
