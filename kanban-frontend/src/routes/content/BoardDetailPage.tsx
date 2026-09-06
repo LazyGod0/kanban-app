@@ -4,16 +4,18 @@ import {
   Alert,
   Box,
   Button,
+  Breadcrumbs,
   CircularProgress,
   Grid,
   IconButton,
+  Link,
   Stack,
   Tooltip,
   Typography,
 } from "@mui/material";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import { useParams } from "react-router-dom";
+import { Link as RouterLink, useParams } from "react-router-dom";
 import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import AddColumnDialog from "../../components/board/AddColumnDialog";
@@ -300,6 +302,14 @@ export default function BoardDetailPage() {
 
   return (
     <Box>
+      <Breadcrumbs aria-label="breadcrumb" sx={{ pt: 1, pb: 1 }}>
+        <Link component={RouterLink} to="/boards" underline="hover">
+          Boards
+        </Link>
+        <Typography color="text.primary" noWrap>
+          {board?.name ?? "Board"}
+        </Typography>
+      </Breadcrumbs>
       <Box
         sx={{
           display: "flex",
