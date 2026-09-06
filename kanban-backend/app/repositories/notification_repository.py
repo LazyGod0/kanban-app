@@ -66,6 +66,31 @@ class NotificationRepository:
                 await conn.commit()
                 return curr.rowcount > 0
 
+    async def mark_all_read(self, user_id: UUID) -> None:
+        async with self.pool.connection() as conn:
+            async with conn.cursor() as curr:
+                await curr.execute(
+                    """
+                    UPDATE notifications
+                    SET is_read = TRUE
+                    WHERE user_id = %s AND is_read = FALSE
+                    """,
+                    (user_id,),
+                )
+                await conn.commit()
+
+    async def delete_all(self, user_id: UUID) -> None:
+        async with self.pool.connection() as conn:
+            async with conn.cursor() as curr:
+                await curr.execute(
+                    """
+                    DELETE FROM notifications
+                    WHERE user_id = %s
+                    """,
+                    (user_id,),
+                )
+                await conn.commit()
+
     async def delete(self, notification_id: UUID, user_id: UUID) -> bool:
         async with self.pool.connection() as conn:
             async with conn.cursor() as curr:

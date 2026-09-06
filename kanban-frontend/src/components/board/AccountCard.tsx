@@ -211,6 +211,41 @@ function AccountCard({ user, onSignOut, isSigningOut }: AccountCardProps) {
     );
   };
 
+  const handleNotificationReadAll = async () => {
+    if (!notificationPage?.unreadCount) {
+      return;
+    }
+
+    await api.patch("/notifications/read-all");
+    pendingNotifications.current = pendingNotifications.current.map(
+      (notification) => ({ ...notification, isRead: true }),
+    );
+    setNotificationPage((current) =>
+      current
+        ? {
+            ...current,
+            unreadCount: 0,
+            items: current.items.map((item) => ({ ...item, isRead: true })),
+          }
+        : current,
+    );
+  };
+
+  const handleNotificationClearAll = async () => {
+    if (!notificationPage?.total) {
+      return;
+    }
+
+    await api.delete("/notifications");
+    pendingNotifications.current = [];
+    setPage(1);
+    setNotificationPage((current) =>
+      current
+        ? { ...current, items: [], page: 1, total: 0, unreadCount: 0 }
+        : current,
+    );
+  };
+
   const handleNotificationClear = async (notificationId: string) => {
     await api.delete(`/notifications/${notificationId}`);
     setNotificationPage((current) =>
@@ -295,9 +330,35 @@ function AccountCard({ user, onSignOut, isSigningOut }: AccountCardProps) {
         }}
       >
         <Box sx={{ p: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 800 }}>
-            Notifications
-          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>
+              Notifications
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              <Button
+                size="small"
+                onClick={() => void handleNotificationReadAll()}
+                disabled={!notificationPage?.unreadCount}
+              >
+                Read all
+              </Button>
+              <Button
+                size="small"
+                color="error"
+                onClick={() => void handleNotificationClearAll()}
+                disabled={!notificationPage?.total}
+              >
+                Clear all
+              </Button>
+            </Stack>
+          </Box>
         </Box>
         <Divider />
         {isLoadingNotifications ? (

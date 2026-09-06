@@ -55,6 +55,20 @@ async def get_notifications(
     return await notification_repository.list_for_user(user_id, page, page_size)
 
 
+@router.patch("/read-all", status_code=status.HTTP_204_NO_CONTENT)
+async def mark_all_notifications_read(
+    user_id: UUID = Depends(get_current_user_id),
+):
+    await notification_repository.mark_all_read(user_id)
+
+
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_all_notifications(
+    user_id: UUID = Depends(get_current_user_id),
+):
+    await notification_repository.delete_all(user_id)
+
+
 @router.patch("/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
 async def mark_notification_read(
     notification_id: UUID,
