@@ -1,5 +1,7 @@
 import { Button, Stack, TextField, Typography } from "@mui/material";
 
+export const MAX_COLUMNS = 3;
+
 type ColumnFieldsProps = {
   columns: string[];
   onAdd: () => void;
@@ -20,9 +22,13 @@ function ColumnFields({
         sx={{ justifyContent: "space-between", alignItems: "center" }}
       >
         <Typography variant="subtitle2">
-          Columns ({columns.length}/5)
+          Columns ({columns.length}/{MAX_COLUMNS})
         </Typography>
-        <Button type="button" onClick={onAdd} disabled={columns.length >= 5}>
+        <Button
+          type="button"
+          onClick={onAdd}
+          disabled={columns.length >= MAX_COLUMNS}
+        >
           Add column
         </Button>
       </Stack>

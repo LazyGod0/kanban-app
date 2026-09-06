@@ -1,5 +1,7 @@
+import type { SubmitEvent } from "react";
 import {
   Button,
+  Box,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,6 +26,11 @@ export default function AddColumnDialog({
   onClose,
   onSubmit,
 }: AddColumnDialogProps) {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    onSubmit();
+  };
+
   return (
     <Dialog
       open={open}
@@ -31,30 +38,32 @@ export default function AddColumnDialog({
       maxWidth="xs"
       fullWidth
     >
-      <DialogTitle>Add column</DialogTitle>
-      <DialogContent>
-        <TextField
-          label="Column name"
-          value={columnName}
-          onChange={(event) => onColumnNameChange(event.target.value)}
-          required
-          fullWidth
-          autoFocus
-          sx={{ mt: 1 }}
-        />
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={isAdding}>
-          Cancel
-        </Button>
-        <Button
-          onClick={onSubmit}
-          variant="contained"
-          disabled={!columnName.trim() || isAdding}
-        >
-          {isAdding ? "Adding..." : "Add column"}
-        </Button>
-      </DialogActions>
+      <Box component="form" onSubmit={handleSubmit}>
+        <DialogTitle>Add column</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Column name"
+            value={columnName}
+            onChange={(event) => onColumnNameChange(event.target.value)}
+            required
+            fullWidth
+            autoFocus
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button type="button" onClick={onClose} disabled={isAdding}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={!columnName.trim() || isAdding}
+          >
+            {isAdding ? "Adding..." : "Add column"}
+          </Button>
+        </DialogActions>
+      </Box>
     </Dialog>
   );
 }

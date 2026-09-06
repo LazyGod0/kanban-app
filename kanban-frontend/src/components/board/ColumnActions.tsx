@@ -1,16 +1,6 @@
 import { useState, type SubmitEvent } from "react";
 import { AxiosError } from "axios";
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Stack,
-  TextField,
-  Tooltip,
-} from "@mui/material";
+import { IconButton, Stack, Tooltip } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddTaskIcon from "@mui/icons-material/PlaylistAdd";
@@ -18,6 +8,7 @@ import api from "../../lib/api";
 import type { Column } from "../../interfaces/Column";
 import type { Task } from "../../interfaces/Task";
 import DeletePopUp from "../common/DeletePopUp";
+import EditColumnDialog from "./EditColumnDialog";
 import TaskDialog from "./TaskDialog";
 
 type ColumnActionsProps = {
@@ -149,51 +140,17 @@ function ColumnActions({
         onClose={() => setIsTaskDialogOpen(false)}
         onCreated={onTaskCreated}
       />
-      <Dialog
+      <EditColumnDialog
         open={isEditing}
         onClose={() => setIsEditing(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <Stack component="form" onSubmit={updateColumn}>
-          <DialogTitle>Edit column</DialogTitle>
-          <DialogContent>
-            <TextField
-              label="Column name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              required
-              fullWidth
-              autoFocus
-              sx={{ mt: 1 }}
-            />
-            <TextField
-              label="Position"
-              type="number"
-              value={position}
-              onChange={(event) => setPosition(Number(event.target.value))}
-              slotProps={{
-                htmlInput: { min: 0, max: maxPosition, step: 1 },
-              }}
-              helperText={`Choose a position from 0 to ${maxPosition}. Other columns will move automatically.`}
-              required
-              fullWidth
-              sx={{ mt: 2 }}
-            />
-            {error && <p>{error}</p>}
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setIsEditing(false)}>Cancel</Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={!name.trim() || position < 0 || position > maxPosition}
-            >
-              Save
-            </Button>
-          </DialogActions>
-        </Stack>
-      </Dialog>
+        name={name}
+        position={position}
+        maxPosition={maxPosition}
+        error={error}
+        onNameChange={setName}
+        onPositionChange={setPosition}
+        onSubmit={updateColumn}
+      />
       <DeletePopUp
         open={isDeletePopUpOpen}
         itemName={`column "${column.name}"`}

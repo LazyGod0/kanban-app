@@ -1,5 +1,7 @@
+import type { SubmitEvent } from "react";
 import {
   Button,
+  Box,
   Dialog,
   DialogActions,
   DialogContent,
@@ -22,22 +24,39 @@ function DeletePopUp({
   onClose,
   onConfirm,
 }: DeletePopUpProps) {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    onConfirm();
+  };
+
   return (
-    <Dialog open={open} onClose={isDeleting ? undefined : onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Delete {itemName}?</DialogTitle>
-      <DialogContent>
-        <Typography color="text.secondary">
-          This action cannot be undone.
-        </Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={isDeleting}>
-          Cancel
-        </Button>
-        <Button onClick={onConfirm} color="error" variant="contained" disabled={isDeleting}>
-          {isDeleting ? "Deleting..." : "Delete"}
-        </Button>
-      </DialogActions>
+    <Dialog
+      open={open}
+      onClose={isDeleting ? undefined : onClose}
+      maxWidth="xs"
+      fullWidth
+    >
+      <Box component="form" onSubmit={handleSubmit}>
+        <DialogTitle>Delete {itemName}?</DialogTitle>
+        <DialogContent>
+          <Typography color="text.secondary">
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button type="button" onClick={onClose} disabled={isDeleting}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            color="error"
+            variant="contained"
+            disabled={isDeleting}
+          >
+            {isDeleting ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Box>
     </Dialog>
   );
 }

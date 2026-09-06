@@ -18,6 +18,7 @@ import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import AddColumnDialog from "../../components/board/AddColumnDialog";
 import ColumnActions from "../../components/board/ColumnActions";
+import { MAX_COLUMNS } from "../../components/board/ColumnFields";
 import ExpandedTasksDialog from "../../components/board/ExpandedTasksDialog";
 import TaskCard from "../../components/board/TaskCard";
 import TaskDetailDialog from "../../components/board/TaskDetailDialog";
@@ -269,13 +270,8 @@ export default function BoardDetailPage() {
               </IconButton>
             </span>
           </Tooltip>
-          {board?.isOwner && columns.length < 3 && (
-            <Button
-              sx={{ textTransform: "none" }}
-              onClick={() => setIsAddColumnOpen(true)}
-            >
-              <Typography>Add Column</Typography>
-            </Button>
+          {board?.isOwner && columns.length < MAX_COLUMNS && (
+            <Button onClick={() => setIsAddColumnOpen(true)}>Add column</Button>
           )}
         </Box>
       </Box>

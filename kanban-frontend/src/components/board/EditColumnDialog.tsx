@@ -1,5 +1,6 @@
 import { type SubmitEvent } from "react";
 import {
+  Alert,
   Button,
   Dialog,
   DialogActions,
@@ -59,10 +60,12 @@ function EditColumnDialog({
             fullWidth
             sx={{ mt: 2 }}
           />
-          {error && <p>{error}</p>}
+          {error && <Alert severity="error">{error}</Alert>}
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button type="button" onClick={onClose}>
+            Cancel
+          </Button>
           <Button
             type="submit"
             variant="contained"
