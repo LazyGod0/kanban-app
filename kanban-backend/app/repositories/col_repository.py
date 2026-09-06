@@ -205,21 +205,26 @@ class ColumnRepository:
         async with self.pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as curr:
                 async with conn.transaction():
-                    await curr.execute("""
-                        SELECT position FROM columns
+                    await curr.execute(
+                        """
+                        SELECT position
+                        FROM columns
                         WHERE id = %s AND board_id = %s
-                    """,
-                    (column_id,board_id)
+                          AND EXISTS (
+                              SELECT 1 FROM board_members
+                              WHERE board_id = columns.board_id
+                                AND user_id = %s
+                                AND role = 'owner'
+                          )
+                        FOR UPDATE
+                        """,
+                        (column_id, board_id, owner_id),
                     )
-                    
-                    result = await curr.fetchone() 
-                    
+                    result = await curr.fetchone()
+                    if not result:
+                        return 0
+
                     position = result["position"]
-                    
-                    if position is None:
-                        return None
-                    
-                    
                     await curr.execute(
                         """
                         DELETE FROM columns
@@ -230,14 +235,17 @@ class ColumnRepository:
                         AND user_id = %s AND role = 'owner'
                         )
                         """,
-                        (column_id, board_id, owner_id)
+                        (column_id, board_id, owner_id),
                     )
-                    
+                    deleted_count = curr.rowcount
+
                     await curr.execute(
-                                        """
-                                        UPDATE columns SET position = position - 1
-                                        WHERE position > %s AND board_id = %s
-                                        """,(position,board_id)
-                                        )
-                    
-                return curr.rowcount
+                        """
+                        UPDATE columns
+                        SET position = position - 1
+                        WHERE position > %s AND board_id = %s
+                        """,
+                        (position, board_id),
+                    )
+
+                return deleted_count
