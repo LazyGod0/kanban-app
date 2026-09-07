@@ -6,6 +6,7 @@ from app.routes.auth import router as auth_router
 from app.routes.board import router as board_router
 from app.routes.notification import router as notification_router
 from app.config.setting import settings
+from fastapi import status
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -36,15 +37,22 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        settings.frontend_url,
-    ],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type"],
 )
+
+@app.get("/health/live", status_code=status.HTTP_200_OK)
+async def liveness() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/health/ready", status_code=status.HTTP_200_OK)
+async def readiness() -> dict[str, str]:
+    await check_database()
+    return {"status": "ok"}
+
 app.include_router(auth_router)
 app.include_router(board_router)
 app.include_router(notification_router)

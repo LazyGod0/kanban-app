@@ -61,6 +61,7 @@ function AccountCard({ user, onSignOut, isSigningOut }: AccountCardProps) {
 
     const apiUrl = new URL(
       import.meta.env.VITE_API_URL ?? "http://localhost:8000",
+      window.location.origin,
     );
     apiUrl.protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
     apiUrl.pathname = "/notifications/ws";
@@ -160,7 +161,9 @@ function AccountCard({ user, onSignOut, isSigningOut }: AccountCardProps) {
             };
           });
         }
-      } catch {}
+      } catch {
+        return;
+      }
     };
 
     loadUnreadCount();

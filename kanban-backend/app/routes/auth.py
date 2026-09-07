@@ -4,6 +4,7 @@ from app.lib.db import pool
 from app.models.auth import RegisterPayload,SignInPayload, UserResponse
 from app.services.auth.auth import AuthService
 from app.errors.auth import ForbiddenException, UnauthorizedException
+from app.config.setting import settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 auth_service = AuthService(pool)
@@ -15,6 +16,7 @@ def set_auth_cookies(response: Response, tokens: dict[str, str]) -> None:
         max_age=15 * 60,
         httponly=True,
         samesite="lax",
+        secure=settings.cookie_secure,
     )
     response.set_cookie(
         key="refresh_token",
@@ -22,11 +24,22 @@ def set_auth_cookies(response: Response, tokens: dict[str, str]) -> None:
         max_age=7 * 24 * 60 * 60,
         httponly=True,
         samesite="lax",
+        secure=settings.cookie_secure,
     )
 
 def clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie(key="access_token", httponly=True, samesite="lax")
-    response.delete_cookie(key="refresh_token", httponly=True, samesite="lax")
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite="lax",
+        secure=settings.cookie_secure,
+    )
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        samesite="lax",
+        secure=settings.cookie_secure,
+    )
 
 @router.post(
     "/register",
@@ -103,6 +116,7 @@ async def refresh(
         max_age=15 * 60,
         httponly=True,
         samesite="lax",
+        secure=settings.cookie_secure,
     )
 
 

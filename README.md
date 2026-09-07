@@ -118,6 +118,52 @@ Run backend tests from `kanban-backend`:
 python -m unittest discover -s tests -p "test_*.py"
 ```
 
+## Production Deployment On A VPS
+
+The repository includes a production Docker Compose stack for a single VPS. It
+uses Nginx installed on the AWS host as the reverse proxy, Nginx inside the
+frontend container for static files, FastAPI for the backend, and PostgreSQL
+with a persistent named volume.
+
+1. Point a domain DNS `A` record to the VPS and install Docker Engine with the
+	Docker Compose plugin. Open only ports `22`, `80`, and `443` in the VPS
+	firewall.
+2. Copy the production environment template and replace every placeholder:
+
+	```powershell
+	copy .env.production.example .env.production
+	```
+
+	Keep `DB_HOST=db`, use a random `JWT_SECRET`, and set `COOKIE_SECURE=false`
+	when accessing the application by plain EC2 IP. Set it to `true` after
+	HTTPS is configured.
+3. Start the production stack:
+
+	```powershell
+	docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+	docker compose -f docker-compose.prod.yml --env-file .env.production ps
+	```
+
+	Configure the host Nginx to proxy `/` to `127.0.0.1:8080`, `/api/` to
+	`127.0.0.1:8000`, and `/notifications/ws` to `127.0.0.1:8000` with WebSocket
+	upgrade headers. The frontend uses `/api`, and the notification socket uses
+	`/notifications/ws`.
+4. Check the deployment and logs:
+
+	```powershell
+	curl.exe -I http://your-ec2-public-ip
+	curl.exe -i http://your-ec2-public-ip/api/health/live
+	curl.exe -i http://your-ec2-public-ip/api/health/ready
+	docker compose -f docker-compose.prod.yml --env-file .env.production logs -f
+	```
+
+Do not run `docker compose down -v` during normal updates because it removes
+the PostgreSQL data volume. The notification WebSocket manager currently keeps
+connections in backend process memory, so run one backend instance and one
+worker. Add Redis/pub-sub before scaling the backend horizontally. For HTTPS,
+configure a domain and Certbot on the host Nginx before setting
+`COOKIE_SECURE=true`.
+
 ## More Details
 
 - [Backend installation](kanban-backend/README.md)
